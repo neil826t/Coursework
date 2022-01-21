@@ -1,0 +1,185 @@
+---
+title: "GDP Growth"
+author: "Neil Thompson"
+date: "3/10/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(bestglm)
+library(car)
+library(MASS)
+library(lmtest)
+library(normtest)
+gdp <- read.csv("Data/gdp_sub.csv")
+gdp <- gdp[c(2:49, 1)]
+```
+#1
+We have a dataset of 88 different countries and observations on 48 different theoritical economic predictors that may or may not have an affect on GDP growth. Our overarching problem is to use this data to answer the question "What spurs economic growth", to figure our which of the predictors recorded significantly explain GDP growth. We will use statistical algorithms to create many models using different combinations of the predictors as covariates to see which models are best and thus discover which selection of covariates do the best job at explaining GDP growth.
+
+#2
+```{r, echo=FALSE}
+gdp.lm <- lm(y~.,data=gdp)
+car::vif(gdp.lm)
+```
+As shown in the table above, many of the variables have VIF values close to or greater than 10. Those greater than 10 are: Absolute latitude, Coastal density, Population growth, European, Fertility rate in 1960's, Public defense spending, Log of 1960 GDP, Public education spending, Government spending from 1960-1964, Government spending in 1961 (these last two are extremely high and also very correlated), Latin American, Life Expectancy, Exports to Imports ratio, Political rights index, Population younger than 15, Population older than 65, Sub-Saharan African, Log of aggregate GDP, Former spanish colony, Land within the tropics, Population living in the tropics, and Years the economy was open between 1950 and 1994. 
+
+It is clear that there are many variables that pose an issue due to their high VIF values. These high values mean that the variable of many of these variable can be mostly explained away by other variables, that they aren't independent of each other. If we leave too many intercorrelated variables in our model, we are overfitting and have collinearity. This would make our regression model bad at predicting and incorrectly sensitive to small changes in data. That would give us very high standard error. We wouldn't be able to confidently use the model to adequetely predict GDP growth.
+
+#3
+In our data set we have a large amount of predictors with a small amount of actual observations. This means that our data is rather limited for us to be able to make strong assumptions about each variable. Since we have 48 covariates it will not be feasible to do an exhaustive variable selection. Instead, we might try the forward or backward selection with multiple different model comparison criterion such as AIC or BIC.
+
+#4
+```{r, include = F}
+var.sel <- bestglm(gdp, IC="BIC", method="forward",TopModels = 10)
+var.sel$BestModel
+```
+I chose a forward variable selection using BIC as the comparison criterion to get a model with 9 different covariates: East Asian, GDP in 1960, investment price, life expectancy, malaria prevalence, foreign language fraction, enrollment rate in primary education, former spanish colony, and years the economy was open. I chose BIC since it favors a model with less covariates and since we have so many possible covariates to choose from the AIC could give us a model that is hard to interpret because it has so many covariates. Also, our goal is not to predict but to understand information about each covariate. AIC will be better for prediction, but BIC is better for inference.
+
+#5
+
+$y_i = \beta_0 + \beta_1$EAST$_i + \beta_2$GDPCH60L$_i+ \beta_3$IPRICE1$_i+ \beta_4$LIFE060$_i+ \beta_5$MALFAL66$_i+ \beta_6$OTHFRAC$_i +\beta_7$P60$_i + beta_8$SPAIN$_i +\beta_9$YRSOPEN$_i + \epsilon_i$, where $\epsilon_i \stackrel{iid}{\sim} \mathcal{N}(0, \sigma^2)$
+
+$y_i$ represent the growth of GDP per capita at purchasing power parities between 1960 and 1996 for each country
+
+EAST$_i$ represents the dummy variable for if the country is East Asian
+
+GDPCH60L$_i$ represents the log GDP per capita in 1960 for each country
+
+IPRICE1$_i$ represents the average investment price level between 1960 and 1964 on purchasing power parity basis for each country
+
+LIFE060$_i$ represents the life expectancy in 1960 for each country
+
+MALFAL66$_i$ represents the index of malaria prevalence in 1966 for each country
+
+OTHFRAC$_i$ represents the fraction of population speaking foreign language for each country
+
+P60$_i$ represents the enrollment rate in primary education in 1960 for each country
+
+SPAIN$_i$ represents the dummy variable for if the country is a former Spanish colony
+
+YRSOPEN$_i$ represents the number of years each country's economy has been open between 1950 and 1994
+
+We are assuming linearity of covariate:y relationships and normal distribution and equal variance of residuals, along with independence of measurements.
+
+Interpretations:
+
+$\beta_1$ is the expected increase of GDP growth on average for if the country is East Asian, and all other variables are kept constant.
+
+$\beta_4$ is the expected increase of GDP growth on average for each additional year of life expectancy in 1960.
+
+#6
+
+```{r, include=FALSE}
+new.gdp.lm <- lm(y~EAST + GDPCH60L + IPRICE1 + LIFE060 + MALFAL66 + OTHFRAC + P60 + SPAIN + YRSOPEN, data=gdp)
+confint(new.gdp.lm)
+```
+95% Confidence Intervals:
+
+$\beta_0:(3.313, 8.614)$
+
+$\beta_1:(1.025, 2.583)$
+
+$\beta_2:(-1.507, -0.544)$
+
+$\beta_3:(-0.012, -0.004)$
+
+$\beta_4:(0.004, 0.100)$
+
+$\beta_5:(-2.115, -0.528)$
+
+$\beta_6:(0.170, 1.433)$
+
+$\beta_7:(0.523, 3.233)$
+
+$\beta_8:(-2.044, -0.699)$
+
+$\beta_9:(-0.357, 1.562)$
+
+Interpreting a categorical variable confidence interval ($\beta_1$): We are 95% confident that the true increase of GDP growth for if the country is East Asian, keeping all other variables constant, is between 1.025 and 2.583.
+
+Interpreting a quantitative variable confidence interval ($\beta_4$): We are 95% confident that the true increase of GDP growth for every additional year of life expectancy in 1960, keeping all other variables constant, is between 0.004 and 0.100.
+
+#7
+```{r, echo = F}
+################ ################ ################ 
+################ Look at assumptions
+################ ################ ################ 
+
+######### linearity
+
+avPlots(new.gdp.lm)
+
+######### linearity, indep, and equal variance
+
+par(mar = c(4,4,1,1))
+plot(new.gdp.lm$fitted.values,stdres(new.gdp.lm))
+abline(h = 0,col = "red",lty = 2)
+
+bptest(new.gdp.lm)
+
+######### normality
+
+hist(stdres(new.gdp.lm),freq = FALSE,ylim = c(0,.4))
+curve(dnorm,from = -3,to = 3,add = TRUE)
+
+qqnorm(stdres(new.gdp.lm))
+abline(a = 0,b=1,col = "red",lty = 2)
+
+ks.test(stdres(new.gdp.lm),"pnorm")
+```
+To check if the linearity assumption is valid, we looked at the added variable plots, along with the plot of fitted values vs. standardized residuals. Both show little sign of non-linearity, although a case may be made for the latter to be non-linear.
+
+To check if the independence assumption is valid, we should just remember that the measurement of each country was independent and that there is no sign for a lack of independence in the fitted values vs. residuals plot; it is valid.
+
+To check if the normality assumption is valid, we looked at the histogram of standardized residuals (which looks to be quite normal), the QQplot (which looks incredibly close to the normal) and perform a KS test, which gave us a p-value of 0.7772, high enough to validate our normality assumption.
+
+To check if the equal variance assumption, we can look again at our scatterplot with standardized residuals (showing no sign of heteroskedasticity) and perform a Breusch-Pagan test for heteroskedasticity, which also produced an insignificant p-value (0.2977), so our equal variance assumption is valid.
+
+#8
+```{r, include=F}
+summary(new.gdp.lm)$r.squared
+```
+We have an $R^2$ of 0.7596, which shows that approximately 76% of the variance in GDP growth can be explained away by the 9 covariates selected by our variable selection. This is not that good, but shows a good amount of explanation power.
+
+```{r,eval=F}
+library(bestglm)
+library(MASS)
+library(lmtest)
+library(normtest)
+gdp <- read.csv("Data/gdp_sub.csv")
+gdp <- gdp[c(2:49, 1)]
+gdp.lm <- lm(y~.,data=gdp)
+car::vif(gdp.lm)
+var.sel <- bestglm(gdp, IC="BIC", method="forward",TopModels = 10)
+var.sel$BestModel
+new.gdp.lm <- lm(y~EAST + GDPCH60L + IPRICE1 + LIFE060 + MALFAL66 + OTHFRAC + P60 + SPAIN + YRSOPEN, data=gdp)
+confint(new.gdp.lm)
+################ ################ ################ 
+################ Look at assumptions
+################ ################ ################ 
+
+######### linearity
+
+avPlots(new.gdp.lm)
+
+######### linearity, indep, and equal variance
+
+par(mar = c(4,4,1,1))
+plot(new.gdp.lm$fitted.values,stdres(new.gdp.lm))
+abline(h = 0,col = "red",lty = 2)
+
+bptest(new.gdp.lm)
+
+######### normality
+
+hist(stdres(new.gdp.lm),freq = FALSE,ylim = c(0,.4))
+curve(dnorm,from = -3,to = 3,add = TRUE)
+
+qqnorm(stdres(new.gdp.lm))
+abline(a = 0,b=1,col = "red",lty = 2)
+
+ks.test(stdres(new.gdp.lm),"pnorm")
+summary(new.gdp.lm)$r.squared
+```

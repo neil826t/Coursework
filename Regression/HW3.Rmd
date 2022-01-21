@@ -1,0 +1,140 @@
+---
+title: "Predicting Bishop, CA stream runoff using snowfall data"
+author: "Neil Thompson"
+date: "2/10/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(lmtest)
+```
+
+1. Water usage is a central part of human livelihood, and California often experiences drought. Predicting water quantity would be extremely useful for adequate distribution. One factor of water availability (especially in stream runoff) is snowfall the winter before. Our dataset compares stream runoff (in acre feet) with snowfall (in inches) in the mountains above. The specific question we would like to answer is what is the relationship between snowfall (which we know first) and stream runoff, who's prediction will enable planners to work more effectively. Our model will be able to give us a relationship that allows us to input snowfall levels and predict the value of runoff.
+
+2. 
+
+```{r}
+water <- read.table("Data/water.txt",header = TRUE)
+
+plot(water, xlab = "Snowfall")
+
+cor(water)
+```
+
+Without fitting our data to a model, we can explore it, first in a standard scatterplot, to see that it looks quite linear. We can also calculate the correlation, which has a value of 0.938436, high enough to justify the use of an SLR to model our data.
+
+3. 
+A justifiable SLR model to answer our questions is a standard SLR, as shown below:
+
+$y_i = \beta_0 + \beta_1x_i + \epsilon_i$
+
+$x_i$ represents each individual measurement of snowfall in inches at the site in the Sierra Nevada.
+
+$y_i$ represents each runoff quantity (in acre-feet) corresponding to the $x_i$ snowfall amount.
+
+$\epsilon_i$ is the error between our model's prediction of runoff quantity and the actual runoff quantity. 
+
+Interpretations
+
+$\beta_0$ is the intercept - the estimated value of runoff if snowfall is 0.
+
+$\beta_1$ is the ratio - the estimated increase of runoff for every additional 1 in increase in snowfall.
+
+After fitting this model to the data, we will have the parameters $\hat{\beta_0}$ & $\hat{\beta_1}$, which will enable us to understand the relationship between snowfall and runoff, allowing us to predict values of runoff by multiplying snowfall by $\hat{\beta_1}$ and adding that to $\hat{\beta_0}$.
+
+4.
+
+```{r}
+water.lm <- lm(Runoff~Precip, data = water)
+summary(water.lm)
+plot(water, xlab = "Snowfall")
+abline(water.lm$coefficients)
+```
+$\hat{y_i} = 27014.6 + 3752.5x_i$
+
+For our parameters (those $\beta$'s), we had $\beta_0 = 27014.6$, which implies that if there is no snowfall, we would estimate the runoff to be $27014.6$ acre-feet, and $\beta_1 = 3752.5$, which implies that for every 1 in. increase in snowfall, there is a $3752.5$ acre-feet estimated increase in runoff.
+
+5.
+```{r}
+plot(water, xlab = "Snowfall")
+abline(water.lm$coefficients)
+
+# Fitted values vs Residuals plot
+plot(water.lm$fitted.values, water.lm$residuals,
+     pch=20, ylab = "Residual")
+abline(h=0,lwd=2,col="blue",lty=2)
+
+#Breusch-Pagan test for homoskedasticity
+bptest(water.lm)
+
+#Histogram of standardized residuals
+hist(MASS::stdres(water.lm))
+
+#Jarques-Bera test for normality
+normtest::jb.norm.test(MASS::stdres(water.lm))
+```
+Our assumptions are that 1. The data follow a linear pattern 2. That the residuals are independent of each other and the covariate 3. That the residuals are distributed normally and 4. That the residuals are distributed with equal variance (homoskedasticity).
+
+We see here in our first plot that the data does follow a linear pattern (also in the second the residuals are evenly above and below 0 with no pattern) and the line we fitted to it, and we see in the second (fitted values vs. residuals) that the residuals are independent of each other and of the covariate, snowfall in inches, since they are not grouped together in systematic ways. This plot also shows equal variance among the residuals, which is proven by our high p-value of 0.3107 on the Breusch-Pagan test. Our third plot shows a quite normal-looking distribution of the standardized residuals, which is confirmed by the p-value of 0.3755 in our Jarques-Bera test.
+
+6. 
+```{r}
+summary(water.lm)$r.squared
+
+## Assess predictive ability of the model (via cross validation) 
+set.seed(1)
+n_test = 4
+n_cv = 1000
+bias = numeric(n_cv)
+rpmse = numeric(n_cv)
+
+for(i in 1:n_cv){
+  test_obs = sample(1:nrow(water),n_test)
+  test_w = water[test_obs,]
+  train_w = water[-test_obs,]
+  train_lm = lm(Runoff~Precip,data=train_w)
+  test_preds = (predict.lm(train_lm,newdata=test_w))
+  bias[i] = mean((test_preds-test_w$Runoff))
+  rpmse[i] = sqrt(mean((test_preds-test_w$Runoff)^2))
+}
+
+mean(bias)
+mean(rpmse)
+```
+
+We received an $R^2$ value of 0.8807, which means that approximately 88% of the variation in the runoff data can be attributed to the changes in snowfall. 
+
+We ran cross validation to assess predictive accuracy and received a bias of 59.95055, which means that the model only predicts about 60 acre-feet higher on average than the true value which is quite close (considering that runoff is on the scale of tens of thousands). We also received a root predicted mean squared error of 8514, which being interpreted essentially means that a typical prediction is 8514 acre-feet away from the true value. These two values (especially the low bias) show that we do indeed have a good prediction. 
+
+7.
+$H_0:$ There is no relationship between snowfall and runoff
+
+$H_1:$ There is a relationship between snowfall and runoff
+
+```{r}
+t.stat <- (water.lm$coef[2])/summary(water.lm)$coef[2,2]
+p.value <- 2 * (1 - pt(t.stat,df=nrow(water)-2))
+
+t.stat
+p.value
+```
+We ran our t-test of the slope parameter and determined, due to our p-value of essentially 0, to reject the null hypothesis and conclude that there is a relationship between snowfall and runoff.
+
+8.
+```{r}
+confint(water.lm) 
+```
+
+We have a 95% confidence interval for our slope $\beta_1$ parameter as (20513.98, 33515.20), inside which we are 95% confident that the true slope (relationship between increased snowfall and increased runoff) lies.
+We have a 95% confidence interval for our intercept $\beta_0$ parameter as (3316.81, 4188.16), inside which we are 95% confident that the true intercept (quantity of runoff with no snowfall) lies.
+
+9.
+
+Our model was $\hat{y_i} = 27014.6 + 3752.5x_i$, so plugging in 4.5 as $x_i$ gives us $\hat{y}_i = 43900.77$ acre-feet. Our 95% predictive interval predicts that 95% of all values of $\hat{y}(4.5)$, our associated runoff, will be between 25254.2 and 62547.3. I do have hesitation making this prediction, since 4.5 inches is lower than any snowfall data point we have, so this prediction is outside the range at which our model is effective. With this lack of confidence we may be hard pressed to release this prediction publicly knowing very well that it could be an erroneous prediction. We do not have the data to make a better one.
+```{r}
+predict.lm(water.lm,newdata=data.frame(Precip=4.5),
+                   interval="prediction",level=0.95)
+```
+         
+                   

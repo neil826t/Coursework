@@ -1,0 +1,101 @@
+---
+title: "HW1"
+author: "Neil Thompson"
+date: "1/27/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+1. In this situation we are trying to find adequate sites for our windmills, obviously desiring places with higher average wind speed. Since energy produced is a function of the square of the wind speed and construction of wind farms is expensive, finding locations accurately with high winds is important. However, the collection of data is also an expensive process, so we want to use data already collected at locations near the candidate sites. We want to know how accurate this comparison is/how good of a predictor the wind speed at a reference site is for the wind speed at the candidate site. Our specific question is: what is the relationship between wind speed at reference sites and at candidate sites.
+We will create a statistical model that predicts values of wind speed at candidate sites given wind speed data at reference sites. 
+
+2. I will read in the windmill data, make a basic scatterplot, calculate mean and standard deviation of each set of data, and then make a histogram of the differences between the reference and candidate data.
+```{r}
+# read in data
+wmData <- read.table("C:\\Users\\neil8\\Documents\\BYU\\STAT 330\\Data\\Windmill.txt",
+                     header = TRUE)
+
+# mean of Reference site data
+mean(wmData$RSpd)
+# mean of Candidate site data
+mean(wmData$CSpd)
+# st. dev. of Reference site data
+sd(wmData$RSpd)
+# st. dev. of Candidate site data
+sd(wmData$CSpd)
+# scatterplot with Reference data as predictor
+plot(wmData$RSpd, wmData$CSpd, xlab = "Reference Site Wind Speed (m/s)",
+     ylab = "Candidate Site Wind Speed (m/s)")
+# difference between Reference and Candidate site data
+difference <- wmData$RSpd - wmData$CSpd
+# mean of that difference
+mean(difference)
+# plotting the differences in a histogram
+hist(difference)
+```
+
+The data seem to follow a relatively strong positive linear trend. On average, the reference site wind speed is 1.24 m/s lower than the candidate site wind speed. The spread of these differences looks approximately normally distributed. The variance of the 2 sites is very similar.
+
+3. SLR model: 
+
+$y_i = \beta_0 + \beta_1x_i$
+
+$x_i$ represents each individual measurement of wind speed from the reference site (predictor).
+
+$\beta_0$ is the intercept - the estimated value of candidate site wind speed when reference site wind speed is 0.
+
+$\beta_1$ is the ratio - the estimated increase of candidate site wind speed for every additional 1 m/s increase in reference site wind speed.
+
+$y_i$ represents each estimated wind speed from the candidate site corresponding to the $x_i$ reference site
+
+After fitting this model to the data, we will have the parameters $\beta_0$ & $\beta_1$, which will enable us to understand the relationship between our predictor and response, answering our question.
+
+Four assumptions of using SLR:
+
+-Relationship between covariate and response is linear
+
+-Errors are independent of covariates and of each other
+
+-Errors are normally distributed
+
+-Equal variance for all $\epsilon_i$
+
+
+4. 
+```{r}
+SLRwindmills <- lm(CSpd ~ RSpd, data = wmData)
+summary(SLRwindmills)
+SLRwindmills$coef
+plot(wmData$RSpd,wmData$CSpd,
+     xlab = "Reference Site Wind Speed (m/s)", 
+     ylab = "Candidate Site Wind Speed (m/s)",
+     pch=19)
+abline(a=SLRwindmills$coef[1],
+       b=SLRwindmills$coef[2],
+       lwd=3, col="green")
+```
+We have our model, after fitting to the data, as:
+$y_i \approx 3.14 + 0.76x_i$
+
+For our parameters, we have $\beta_0 = 3.14123$, which implies that if our wind speed at the reference site is 0 m/s, we would estimate a wind speed of 3.14123 m/s at the corresponding candidate site, and $\beta_1 = 0.7557333$, which implies that for every 1 m/s increase in wind speed at the reference site, there is a 0.7557333 m/s estimated increase in the wind speed at the corresponding candidate site.
+
+
+5. If we desired to obtain a prediction of the wind speed at any given candidate site, we could take the data from the reference site, specifically the average wind speed, and plug it in as $x_i$ to our model. Take, for example, that our reference site has an average wind speed of 12 m/s. Then we have the following basic calculation:
+```{r}
+3.14123 + 12*0.7557333
+```
+which gives a value of 12.21 m/s as our prediction for the candidate site wind speed.
+
+
+6. One potential limitation of this model includes the inaccuracy of getting into higher wind speed than what we have data for. We can use the example of having an average wind speed of 30 m/s.
+```{r}
+3.14123 + 30*0.7557333
+```
+which gives a value of 25.81 m/s, which is a sizable difference from the 30 m/s at the reference site. We see that with our model this discrepancy only increases as the values increase, to an extremely unlikely amount.
+
+

@@ -1,0 +1,166 @@
+---
+title: "Stat 330 HW2"
+author: "Neil Thompson"
+date: "2/3/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(lmtest)
+```
+1. One element of driving safety has to do with stopping distance, which is how much distance a car will travel while slowing down before stopping in order to avoid hitting something (most importantly a pedestrian). Our specific question is what is the relationship between the speed of a car (which we can control) and the stopping distance (which is what we are trying to predict).
+
+2. 
+
+```{r 2}
+stopDist <- read.table("C:\\Users\\neil8\\Documents\\BYU\\STAT 330\\Data\\StoppingDistance.txt",
+header = TRUE)
+sd_lm <- lm(Distance~Speed, data = stopDist)
+
+plot(stopDist)
+abline(sd_lm$coefficients)
+
+# Fitted values vs Residuals plot
+plot(sd_lm$fitted.values, sd_lm$residuals,
+     pch=20,ylim=c(-30,30), xlab = "Speed", ylab = "Residual")
+abline(h=0,lwd=2,col="blue",lty=2)
+
+#Breusch-Pagan test
+bptest(sd_lm)
+
+#Histogram of standardized residuals
+hist(MASS::stdres(sd_lm))
+```
+
+Here I will show some graphs and a test to prove why using a SLR (simple linear regression) model for this data isn't appropriate. Our first graph is of the plotted values of our speed vs. distance data, along with the line that represents our linear model. This line is essentially a summary of our data. For now it looks like it follows the dots pretty well.
+However, if we look at our next graph (what we call a fitted values vs. residual graph - which is a plot of the distances between the points and the line from the previous graph), we can tell that on the edges, where the speed is either really high or really low, most of the points are above the line whereas in the middle, most of the points are below the line. This is a clue that perhaps our data aren't linear. 
+If you look closely you also notice that the data are really spread out at high speeds whereas they are really close together at low speed. This shows something called heteroskedasticity (when the points very more at some locations than others), which is inadequate for our slr. To really show that the model is heteroskedastic, we run a test which looks at our data and tells us the chance of getting data like that or even more heteroskedastic when our model actually is not heteroskedastic. The test gave us the number 0.0001376, which is much too low to ignore and we have to conclude that the SLR model on our data is in fact truly heteroskedastic.
+Our last graph is a histogram (like a bar graph) of the residuals (distance from the line), and we see a pretty normal bell-shaped curve, which is fine.
+However, with the evidence before, we have decided that the SLR model on this data is not appropriate.
+
+3. 
+A justifiable SLR model to answer our questions is a standard SLR but taking the square root of all of our data, as shown below:
+
+$\sqrt{y_i} = \beta_0 + \beta_1\sqrt{x_i} + \epsilon_i$
+
+$x_i$ represents each individual car's speed in MPH.
+
+$\beta_0$ is the intercept - the square root of the estimated stopping distance when a car's speed is 0 mph (0 mph is the square root of 0 mph).
+
+$\beta_1$ is the ratio - the estimated increase of the square root stopping distance for every additional 1 m/s increase in the square root of car speed.
+
+$y_i$ represents each stopping distance (in feet) corresponding to the $x_i$ speed.
+
+$\epsilon_i$ is the error between the square root of the $i$-th measurement of stopping distance and the model's prediction based on the square root of the $i$-th measurement of speed. 
+
+After fitting this model to the data, we will have the numbers $\beta_0$ & $\beta_1$, which give us information about the relationship between the car speed and the stopping distance, answering our question.
+
+4. 
+We have these assumptions: that there is a linear relationship (straight line), that how big the errors/residuals (distance from line) are doesn't have to with other errors or the speed, that the errors make a normal, bell-shaped distribution, and that all the errors have an equal variance (that's when it's not heteroskedastic, that we talked about above).  
+
+
+
+```{r 4}
+# new model
+sqrtSDist <- sqrt(stopDist)
+sSD_lm <- lm(Distance~Speed, data = sqrtSDist)
+summary(sSD_lm)
+# Square root SLR plot
+plot(sqrt(stopDist), xlab = "Square root of Speed", ylab = "Square root of Distance")
+abline(sSD_lm$coefficients)
+# Fitted values vs. Residuals plot
+plot(sSD_lm$fitted.values, sSD_lm$residuals,
+     pch=20, xlab = "Square root of Speed", ylab = "Residual")
+abline(h=0,lwd=2,col="blue",lty=2)
+# Breusch-Pagan test
+bptest(sSD_lm)
+#Histogram of standardized residuals
+hist(MASS::stdres(sSD_lm))
+```
+Here in these graphs and this test above, we see what we did before with our first SLR. We see now in that second graph with the flat line through the middle that our data is more evenly distributed above and below the line all around, showing that it's really likely to be linear.
+
+We see in this same graph that there doesn't seem to be any correlation between the residuals and the square root of the speed or the residuals and any other residuals, so we can confirm our second assumption.
+
+We see from the histogram (the one with the bars) that the residuals make a nice bell-curve, so we can say that they are normally distributed.
+
+We received a p-value of 0.1178 from our Breusch-Pagan test, which says that it's actually decently likely that we have results like this with a non-heteroskedastic model, so we can confirm our fourth assumption.
+
+5. 
+```{r 5}
+## Assess the fit (via R^2)
+summary(sSD_lm)$r.squared ## R^2 is bigger than untransformed model
+summary(sd_lm)$r.squared
+## Assess predictive ability of the model (via cross validation) 
+
+
+set.seed(1)
+n_test = 4
+n_cv = 1000
+bias_sqrt = numeric(n_cv)
+rpmse_sqrt = numeric(n_cv)
+
+for(i in 1:n_cv){
+  test_obs = sample(1:nrow(stopDist),n_test)
+  test_sd = stopDist[test_obs,]
+  train_sd = stopDist[-test_obs,]
+  train_lm = lm(sqrt(Distance)~sqrt(Speed),data=stopDist)
+  test_preds = (predict.lm(train_lm,newdata=test_sd))^2
+  bias_sqrt[i] = mean((test_preds-test_sd$Distance))
+  rpmse_sqrt[i] = sqrt(mean((test_preds-test_sd$Distance)^2))
+}
+
+## Original scale
+set.seed(1)
+n_test = 4
+n_cv = 1000
+bias = rep(NA,n_cv)
+rpmse = rep(NA,n_cv)
+
+for(cv in 1:n_cv){
+  test_obs = sample(1:nrow(stopDist), n_test)
+  test_sd = stopDist[test_obs,]
+  train_sd = stopDist[-test_obs,]
+  train_lm = lm(Distance ~ Speed, data=train_sd)
+  test_preds = predict.lm(train_lm,newdata=test_sd)
+  bias[cv] = mean(test_preds-test_sd$Distance)
+  rpmse[cv] = sqrt(mean((test_preds-test_sd$Distance)^2))
+}
+
+
+mean(bias_sqrt)
+mean(rpmse_sqrt)
+mean(bias)
+mean(rpmse)
+
+```
+After running some tests we have determined a few things about our square root model compared to our normal model. First, we see that 0.906, or 90.6% of the stopping distance information can be predicted with our model, which is higher that the 87.8% of our original model. This shows a more accurate fit.
+
+Second, we also see that although our second model is slightly more biased (that's what the -0.534 compared to the 0.049 is), meaning that the average prediction using the second model is a little bit off, the second model has less error in general than the first (that's what the 9.828 compared to the 11.219 is). We can say that the predictive accuracy of the second model is good.
+
+6.
+Using the results in number 3 we get the linear model:
+
+$\hat{y}_i = (-3.12 + 2.11\sqrt{x_i})^2 = 9.718 - 13.136\sqrt{x_i} + 4.439x_i$
+
+For our parameters (those $\beta$'s), we had $\beta_0 = 3.11737$, which implies that if our car's speed is 0 mph, we would estimate the square root of our stopping distance to be $-3.11737$ feet, and $\beta_1 = 2.10697$, which implies that for every 1 increase in the square root of car speed, there is a 2.10697 estimated increase in the square root of stopping distance.
+
+Since none of these explanations really help us, we choose to rewrite our model (as shown above) to something more practical, where our intercept suggests that if the speed is 0 mph, the stopping distance will be 9.718 feet (still not very useful). Let's look at a plot.
+
+```{r 6}
+plot(stopDist, pch = 19)
+curve((9.718 - 13.136*sqrt(x) + 4.439*x), add = TRUE)
+```
+
+
+7.
+``` {r 7}
+# 35 MPH prediction
+sqrtModel <- function(x) {
+  return (9.718 - 13.136*sqrt(x) + 4.439*x)
+}
+sqrtModel(35)
+sqrtModel(30)
+```
+Running our model with a speed of 35 mph gives us a predicted stopping distance of 87.37 ft. A speed reduction of 5 mph to 30 mph gives us a stopping distance of 70.94 ft, which is a reduction of 16.43 ft. 
+I would like to argue against the speed limit of 35 mph in favor of a lower speed limit due to the many homes around the road. In order to promote a safe residential environment, homeowners need to trust that the cars will be traveling at a safe enough speed so that they can stop after seeing people or pets in front of them without hitting them. 87.37 feet is very far, and although the road is rural, it is residential, and thus we should put people in first priority over cars for the safety and well being of the neighborhood.

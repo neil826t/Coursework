@@ -1,0 +1,236 @@
+---
+title: "Life Expectancy by GDP and OECD Status"
+author: "Neil Thompson"
+date: "2/27/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(car)
+library(ggplot2)
+library(MASS)
+library(lmtest)
+library(normtest)
+```
+#1. We have data collected about each country, their estimated life expectancy, their OECD/Africa status, and their GDP per capita. We want to establish if there is a relationship between economic well being (quantified by GDP per capita) and life expectancy, as well as establish if there is a relationship between OECD status and life expectancy. These are our 2 specific questions. Knowing this information will enable us the OECD to develop better policy to improve life expectancy and thus likely the well-being of the country. We will be developing a statistical model that will enable us to test the hypotheses of these relationships. 
+
+#2. 
+
+```{r, echo = F}
+lifeExp <- read.table("Data/LifeExp.txt",header=TRUE,stringsAsFactors = TRUE)
+lifeExp$Group = relevel(lifeExp$Group, ref = "other")
+
+ggplot(lifeExp,aes(y=LifeExp,x=log(PPGDP),color=Group))+
+  geom_point()
+```
+
+We see roughly the same slope for each group. If we saw differences in slope that would be an indicator of interaction, but since we don't, I believe that including an interaction in the model is not necessary.
+
+#3. 
+$y_i = \beta_0 + \beta_1log(PPGDP_i) + \beta_2I$(Group$_i$ = Africa)$+ \beta_3I$(Group$_i$ = OECD)$+ \beta_4log(PPGDP_i)I$(Group$_i$ = Africa)$+ \beta_5log(PPGDP_i)I$(Group$_i$ = OECD)$+ \epsilon_i$, where $\epsilon_i \stackrel{iid}{\sim} \mathcal{N}(0, \sigma^2)$
+
+$y_i$ represent the life expectancy of each country
+
+$log(PPGDP_i)$ represents the log of the per person GDP of each country
+
+$I$(Group$_i$ = Africa) and $I$(Group$_i$ = OECD) are the dummy variables (0 or 1), for each country, whether they are in Africa or OECD or neither
+
+Interpretations:
+
+$\beta_0$ is the intercept, the life expectancy on average if PPGDP were 0 and the country was not in Africa or a member of the OECD
+
+$\beta_1$ is the estimated additive increase on average of life expectancy in the "other" group for every time the log(PPGDP) increases by one, or every time the PPGDP is multiplied by e, holding group constant.
+
+$\beta_2$ is the estimated difference of life expectancy on average from a country in the other group to a country in Africa, keeping PPGDP constant.
+
+$\beta_3$ is the estimated difference of life expectancy on average from a country in the other group to a OECD member country, keeping PPGDP constant.
+
+$\beta_4$ is the estimated interaction between log(PPGDP) and being from the Africa group. In other words, it is the additional increase on average (aside from $beta_1$) of life expectancy for every time log(PPGDP) increases by one specifically for those in the Africa group.
+
+$\beta_5$ is the estimated interaction between log(PPGDP) and being from the OECD group. In other words, it is the additional increase on average (aside from $\beta_1$) of life expectancy for every time log(PPGDP) increases by one specifically for those in the OECD group.
+
+Assumptions:
+
+1. Data are linear
+
+2. Residuals are independent of each other and of the covariates (PPGDP, Group)
+
+3. Residuals are normally distributed
+
+4. Residuals have equal variance
+
+
+#4. 
+```{r, echo = F, results='hide'}
+## Fit a Model with Interaction
+
+lex.lm = lm(formula = LifeExp~log(PPGDP)*Group,data=lifeExp)
+
+summary(lex.lm)
+```
+$\hat{y_i} = 50.42 + 2.94log(PPGDP_i) - 11.90I$(Group$_i$ = Africa)$+ 11.29I$(Group$_i$ = OECD)$- 0.0413log(PPGDP_i)I$(Group$_i$ = Africa)$- 0.953log(PPGDP_i)I$(Group$_i$ = OECD)
+```{r, echo = F}
+ggplot(lifeExp,aes(y=LifeExp,x=log(PPGDP),color=Group))+
+  geom_point() +
+  geom_smooth(method="lm",se=FALSE)
+```
+
+#5
+
+```{r, echo = F}
+summary(lex.lm)$r.squared
+
+################ ################ ################ 
+################ Look at assumptions
+################ ################ ################ 
+
+######### linearity
+
+avPlots(lex.lm)
+
+######### linearity, indep, and equal variance
+
+par(mar = c(4,4,1,1))
+plot(lex.lm$fitted.values,stdres(lex.lm))
+abline(h = 0,col = "red",lty = 2)
+
+
+bptest(lex.lm)
+
+######### normality
+
+hist(stdres(lex.lm),freq = FALSE,ylim = c(0,.4))
+curve(dnorm,from = -3,to = 3,add = TRUE)
+
+qqnorm(stdres(lex.lm))
+abline(a = 0,b=1,col = "red",lty = 2)
+
+jb.norm.test(stdres(lex.lm),nrepl = 1e5)
+ks.test(stdres(lex.lm),"pnorm")
+
+```
+We calculated an $R^2$ score of 0.9865, which shows that our model is an excellent fit. That means that 98.65% of the variance in life expectancy in countries can be attributed to PPGDP and whether or not they are African nations or OECD members.
+
+To check if the linearity assumption is valid, we looked at the added variable plots, along with the plot of fitted values vs. standardized residuals. Both show no signs of non-linearity. 
+
+To check if the independence assumption is valid, we should just remember that the measurement of each man was independent and that there is no sign for a lack of independence in the fitted values vs. residuals plot; it is valid.
+
+To check if the normality assumption is valid, we looked at the histogram of standardized residuals (which looks to be quite normal), the QQplot (which looks incredibly close to the normal) and perform JB and KS tests. Both tests had insignficant p-values (~0.8 for JB, 0.8726 for KS), enough to validate our normality assumption.
+
+To check if the equal variance assumption, we can look again at our scatterplot with standardized residuals (showing no sign of heteroskedasticity) and perform a Breusch-Pagan test for heteroskedasticity, which also produced an insignificant p-value (0.2984), so our equal variance assumption is valid.
+
+#6
+
+```{r,echo=F}
+## F-test for overall regression
+summary(lex.lm)$fstat
+
+## F-test for covariates
+noGroup.lm = lm(LifeExp ~ log(PPGDP), data=lifeExp)
+anova(noGroup.lm, lex.lm)
+
+noPPGDP.lm = lm(LifeExp ~ Group, data = lifeExp)
+anova(noPPGDP.lm, lex.lm)
+
+## Confidence Intervals
+confint(lex.lm)
+```
+
+Both F-tests for the covariates (log(PPGDP) and Group) had p-values of essentially zero and thus were significant for us to determine that both covariates significantly affect life expectancy. 
+
+Confidence Intervals:
+
+$\beta_0:(49.0171, 51.8309)$
+
+$\beta_1:(2.7772, 3.1004)$
+
+$\beta_2:(-14.8069, -8.9834)$
+
+$\beta_3:(4.9501, 17.6340)$
+
+$\beta_4:(-0.4607, 0.3781)$
+
+$\beta_5:(-1.5700, -0.3353)$
+
+Our confidence interval for log(PPGDP): We are 95% confident that the true increase of life expectancy for every 1 increase in log(PPGDP) for countries in the "other" group is between 2.7772 and 3.1004.
+
+Our confidence interval for log(PPGDP):GroupOECD: We are 95% confident that the true additional increase for OECD member countries relative to "other" countries for every 1 increase in log(PPGDP) is between -1.57 and -0.3353.
+
+#7
+```{r, echo=F}
+
+## F-test for test of interaction terms
+
+noint.lm = lm(LifeExp~log(PPGDP)+Group,data=lifeExp)
+anova(noint.lm,lex.lm)  ### Test on whether interaction is significant
+```
+We performed an F-test for the interaction between log(PPGDP) and Group and we calculated a p-value of 0.01083, which is significant enough to reject the null hypothesis in favor of verifying the significance of the interaction. Thus we will treat differently the effect of PPGDP on life expectancy for different groups.
+
+```{r, eval=FALSE}
+#My code
+
+knitr::opts_chunk$set(echo = TRUE)
+library(car)
+library(ggplot2)
+library(MASS)
+library(lmtest)
+library(normtest)
+lifeExp <- read.table("Data/LifeExp.txt",header=TRUE,stringsAsFactors = TRUE)
+lifeExp$Group = relevel(lifeExp$Group, ref = "other")
+
+ggplot(lifeExp,aes(y=LifeExp,x=log(PPGDP),color=Group))+
+  geom_point()
+lex.lm = lm(formula = LifeExp~log(PPGDP)*Group,data=lifeExp)
+
+summary(lex.lm)
+ggplot(lifeExp,aes(y=LifeExp,x=log(PPGDP),color=Group))+
+  geom_point() +
+  geom_smooth(method="lm",se=FALSE)
+summary(lex.lm)$r.squared
+
+################ ################ ################ 
+################ Look at assumptions
+################ ################ ################ 
+
+######### linearity
+
+avPlots(lex.lm)
+
+######### linearity, indep, and equal variance
+
+par(mar = c(4,4,1,1))
+plot(lex.lm$fitted.values,stdres(lex.lm))
+abline(h = 0,col = "red",lty = 2)
+
+
+bptest(lex.lm)
+
+######### normality
+
+hist(stdres(lex.lm),freq = FALSE,ylim = c(0,.4))
+curve(dnorm,from = -3,to = 3,add = TRUE)
+
+qqnorm(stdres(lex.lm))
+abline(a = 0,b=1,col = "red",lty = 2)
+
+jb.norm.test(stdres(lex.lm),nrepl = 1e5)
+ks.test(stdres(lex.lm),"pnorm")
+## F-test for overall regression
+summary(lex.lm)$fstat
+
+## F-test for covariates
+noGroup.lm = lm(LifeExp ~ log(PPGDP), data=lifeExp)
+anova(noGroup.lm, lex.lm)
+
+noPPGDP.lm = lm(LifeExp ~ Group, data = lifeExp)
+anova(noPPGDP.lm, lex.lm)
+
+## Confidence Intervals
+confint(lex.lm)
+
+## F-test for test of interaction terms
+
+noint.lm = lm(LifeExp~log(PPGDP)+Group,data=lifeExp)
+anova(noint.lm,lex.lm)  ### Test on whether interaction is significant
+```

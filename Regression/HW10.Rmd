@@ -1,0 +1,160 @@
+---
+title: "HW 10"
+author: "Neil Thompson"
+date: "4/13/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(forecast)
+```
+#1
+
+We are given weekly data for a metric related to how often "Studio C" was searched for on Google. This data is not independent to each other, and tends to follow seasonal-looking patterns. The goal is to use this data to predict the future popularity of Studio C and we will use time-series models that take into account seasonality and other non-independent factors to predict the future pattern of the desired response.
+
+#2
+```{r 2, echo = F, message = F}
+stuC <- read.csv("Data/StudioC.csv")
+attach(stuC)
+plot(Week, Google_index, type = "l")
+Acf(Google_index,main = "",cex.lab = 1.4,
+    lag.max = 30,ylab = "ACF")
+```
+
+There is definitely a degree of autocorrelation in this dataset - we see in the time series plot obvious patterns of increasing and decreasing, and in the ACF plot all lag points have positive ACF and are not randomly distributed. There is evidence of seasonality; I would definitely not use a standard simple linear regression model. 
+
+#3
+
+```{r 3, echo=F, results=F}
+gi_ts <- ts(Google_index, frequency = 26)
+ar1 <- Arima(gi_ts,order = c(1, 0, 0))
+ma1 <- Arima(gi_ts,order = c(0, 0, 1))
+arma1 <- Arima(gi_ts,order = c(1, 0, 1))
+arima1 <- Arima(gi_ts,order = c(1,1,1))
+sarima1 <- Arima(gi_ts,order = c(1, 1, 1),
+                 seasonal = list(order = c(1,1,1),period = 26))
+AIC(ar1)
+AIC(ma1)
+AIC(arma1)
+AIC(arima1)
+AIC(sarima1)
+BIC(ar1)
+BIC(ma1)
+BIC(arma1)
+BIC(arima1)
+BIC(sarima1)
+```
+
+It looks like the SARIMA$(1,1,1)\times(1,1,1)_{26}$ model is the one that best fits the data, with an AIC of 531.6329 compared with the next lowest of 727.4901 and BIC of 543.1533 compared with the next lowest of 735.3056. 
+
+#4
+
+```{r 4, echo=F}
+plot(Week[-(1:26)], Google_index[-(1:26)], type = "l")
+lines(Week[-(1:26)],sarima1$fitted[-(1:26)],col = "red",lty = 1,lwd = 2)
+```
+The fit seems to adequately capture the general trends of the data but misses the smaller ups and downs. Overall, it is good.
+
+#5
+
+```{r 5, echo = F}
+# independence
+Acf(sarima1$residuals[-(1:26)])
+
+# normality
+hist(sarima1$residuals[-(1:26)]/sd(sarima1$residuals[-(1:26)]),
+     freq = FALSE,breaks = 20)
+curve(dnorm(x),from = -4,to = 4,add = TRUE)
+
+qqnorm(sarima1$residuals[-c(1:26)]/sd(sarima1$residuals[-c(1:24)]))
+abline(0,1,col = "red",lwd = 2,lty = 2)
+
+# equal variance
+plot(sarima1$fitted[-(1:26)],sarima1$residuals[-(1:26)])
+```
+
+We are comfortable assuming independence of residuals with our ACF of residuals not showing any specific trend.
+
+We are comfortable assuming normality, based on a histogram that looks similar to a normal curve and a very good qqplot.
+
+We are comfortable assuming equal variance by the fitted vs. residuals plot - it shows no evidence of heteroscedasticity.
+
+#6
+```{r 6, echo = F}
+gi.test <- gi_ts[76:101]
+gi.train <- gi_ts[-(76:101)]
+train.mod <- Arima(gi.train, order = c(1,1,1), 
+                   seasonal = list(order = c(1,1,1),period = 26))
+pred <- forecast(train.mod, h = 26)
+plot(pred)
+lines(Week[76:101],gi.test,col = "black",lty = 1,lwd = 1)
+rpmse <- sqrt(mean((gi.test - pred$mean)^2))
+bias <- mean(pred$mean - gi.test)
+```
+
+We ran cross-validation on the last 26 observations and obtained an RPMSE of 8.528 and a bias of -3.374. Since our response varies between about 30 and 100, this is pretty good but not great. Our graph shows the data in black and the prediction in blue.
+
+#7 
+```{r 7, echo = F}
+next26 <- forecast(sarima1, h = 26)
+plot(next26)
+```
+
+
+CODE
+```{r allcode, eval=FALSE}
+library(forecast)
+#2
+stuC <- read.csv("Data/StudioC.csv")
+attach(stuC)
+plot(Week, Google_index, type = "l")
+Acf(Google_index,main = "",cex.lab = 1.4,
+    lag.max = 30,ylab = "ACF")
+#3
+gi_ts <- ts(Google_index, frequency = 26)
+ar1 <- Arima(gi_ts,order = c(1, 0, 0))
+ma1 <- Arima(gi_ts,order = c(0, 0, 1))
+arma1 <- Arima(gi_ts,order = c(1, 0, 1))
+arima1 <- Arima(gi_ts,order = c(1,1,1))
+sarima1 <- Arima(gi_ts,order = c(1, 1, 1),
+                 seasonal = list(order = c(1,1,1),period = 26))
+AIC(ar1)
+AIC(ma1)
+AIC(arma1)
+AIC(arima1)
+AIC(sarima1)
+BIC(ar1)
+BIC(ma1)
+BIC(arma1)
+BIC(arima1)
+BIC(sarima1)
+
+#4
+plot(Week[-(1:26)], Google_index[-(1:26)], type = "l")
+lines(Week[-(1:26)],sarima1$fitted[-(1:26)],col = "red",lty = 1,lwd = 2)
+
+#5
+# fitted vs. residuals
+plot(sarima1$fitted[-(1:26)],sarima1$residuals[-(1:26)])
+Acf(sarima1$residuals[-(1:26)])
+hist(sarima1$residuals[-(1:26)]/sd(sarima1$residuals[-(1:26)]),
+     freq = FALSE,breaks = 20)
+curve(dnorm(x),from = -4,to = 4,add = TRUE)
+
+qqnorm(sarima1$residuals[-c(1:26)]/sd(sarima1$residuals[-c(1:24)]))
+abline(0,1,col = "red",lwd = 2,lty = 2)
+
+#6
+gi.test <- gi_ts[76:101]
+gi.train <- gi_ts[-(76:101)]
+train.mod <- Arima(gi.train, order = c(1,1,1), 
+                   seasonal = list(order = c(1,1,1),period = 26))
+pred <- forecast(train.mod, h = 26)
+plot(pred)
+rpmse <- sqrt(mean((gi.test - pred$mean)^2))
+bias <- mean(pred$mean - gi.test)
+#7
+next26 <- forecast(sarima1, h = 26)
+plot(next26)
+```

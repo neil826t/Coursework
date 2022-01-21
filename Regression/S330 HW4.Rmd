@@ -1,0 +1,144 @@
+---
+title: "Predicting Male Body Fat"
+author: "Neil Thompson"
+date: "2/23/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(MASS)
+library(normtest)
+library(car)
+library(lmtest)
+```
+1. We are given the dataset of Body Fat data for each of 251 men along with 13 measurements including age, weight, height, and circumference measurements. Our problem is that we are interested in measuring body fat without needing to perform the more exact but unwieldy process of submerging the body in water. We hope to find that our 13 measurements have some correlation to body fat percentage and that using our model, we can predict body fat percentage just from the 13 elements. Specifically, we want to know the relationship between true body fat percentage and the 13 measurements that are easier to measure.
+
+2.
+```{r data}
+bodyFat = read.table("Data/bodyfat.txt", header = TRUE)
+nrow(bodyFat)
+plot(bodyFat)
+cor(bodyFat)
+```
+We explore our data in a set of standard scatterplots, of which we have 91, which compare all 14 measurements to each other. We see linear relationships in most of the plots. Comparing body fat to the other 13 measurements, we see linear trends in the data for all measurements except height. Looking at the table of correlation values, we see high correlation for about half of the measurements. Measurements like chest and abdomen circumference are highly correlated with body fat. There also seem to be some strong relationships between weight and a few circumference measurements such as hip, chest, and abdomen.
+
+3. 
+A justifiable MLR model to answer our questions could be written as such:
+
+$y_i = \beta_0 + \beta_1age_i + \beta_2weight_i + \beta_3height_i + \beta_4neck_i + \beta_5chest_i + \beta_6abdomen_i + \beta_7hip_i + \beta_8thigh_i + \beta_9knee_i + \beta_{10}ankle_i + \beta_{11}biceps_i + \beta_{12}forearm_i + \beta_{13}wrist_i + \epsilon_i$, where $\epsilon_i \stackrel{iid}{\sim} \mathcal{N}(0, \sigma^2)$ 
+
+$y_i$ represents each man's body fat percentage.
+
+attribute$_i$ represents, for each attribute, each man's measurement of that attribute (for example, age_i represents each man's age).
+
+$\epsilon_i$ is the difference between the model's prediction of body fat percentage and true body fat percentage.
+
+Interpretations
+
+$\beta_0$ is the intercept, the value, on average according to the model, of body fat if all other measurements are 0.
+
+$\beta_1$ is the increase on average of body fat, when all other measurement are held constant, for every one additional year of age.
+
+$\beta_2$ is the increase on average of body fat, when all other measurement are held constant, for every one additional pound of weight. 
+
+$\beta_3$ is the increase on average of body fat, when all other measurement are held constant, for every one additional inch of height. 
+
+$\beta_4 -\beta_{13}$ are the respective increases on average of body fat, when all other measurement are held constant, for every one additional inch of each circumference measurement.
+
+4.
+```{r}
+bodyfat.lm <- lm(brozek~.,data=bodyFat)
+summary(bodyfat.lm)
+```
+Through our MLR model, we have the coefficients:
+$\beta_0$ = -15.2923
+$\beta_1$ = 0.05678
+$\beta_2$ = -0.08031
+$\beta_3$ = -0.06461
+$\beta_4$ = -0.4375
+$\beta_5$ = -0.02360
+$\beta_6$ = 0.8854
+$\beta_7$ = -0.1984
+$\beta_8$ = 0.2319
+$\beta_9$ = -0.01166
+$\beta_10$ = 0.1635
+$\beta_11$ = 0.1528
+$\beta_12$ = 0.4305
+$\beta_13$ = -1.4766
+
+Interpreting $\beta_6$, we understand that as hip circumference increases by one inch, body fat will increase by 0.8854% on average.
+
+5.
+
+Our assumptions are that 1. The data follow a linear pattern 2. That the residuals are independent of each other and the covariate 3. That the residuals are distributed normally and 4. That the residuals are distributed with equal variance (homoskedasticity).
+
+To check if the linearity assumption is valid, we can look at the added variable plots below, along with the plot of fitted values vs. standardized residuals. We can also look at any of the factors vs. standardized residuals, one of which (age) is displayed below. Because of the lack of non-linear patterns in these plots, our assumption is valid.
+
+To check if the independence assumption is valid, we should just remember that the measurement of each man was independent and that there is no sign for a lack of independence in the fitted values vs. residuals plot; it is valid.
+
+To check if the normality assumption is valid, we can look at the histogram of standardized residuals (which looks to be quite normal) and perform JB and KS tests. Both tests had insignficant p-values (~0.24 for JB, 0.82 for KS), enough to validate our normality assumption.
+
+To check if the equal variance assumption, we can look again at our scatterplots with standardized residuals (showing no sign of heteroskedasticity) and perform a Breusch-Pagan test for heteroskedasticity, which also produced an insignificant p-value (0.1209), so our equal variance assumption is valid.
+
+```{r}
+car::avPlots(bodyfat.lm)
+plot(bodyfat.lm$fitted.values,stdres(bodyfat.lm),pch=19)
+abline(a=0,b=0)
+plot(bodyFat$age,stdres(bodyfat.lm),pch=19)
+abline(a=0,b=0)
+hist(stdres(bodyfat.lm),freq = FALSE)
+curve(dnorm,from = -3,to = 3,add = T)
+jb.norm.test(stdres(bodyfat.lm))
+ks.test(stdres(bodyfat.lm),"pnorm")
+bptest(bodyfat.lm)
+```
+
+6.
+
+```{r}
+n.test = 25
+n.cv = 1e3
+n = 251
+bias = numeric(n.cv)
+rpmse = numeric(n.cv)
+width = numeric(n.cv)
+coverage = numeric(n.cv)
+
+for(i in 1:n.cv){
+  test.obs = sample(1:n,n.test)
+  bf.test = bodyFat[test.obs,]
+  bf.train = bodyFat[-test.obs,]
+  train.lm = lm(brozek~.,data=bf.train)
+  preds = predict.lm(train.lm,newdata=bf.test,
+                     interval = "prediction",
+                     level = 0.95)
+  bias[i] = mean(preds-bf.test$brozek)
+  rpmse[i] = sqrt(mean((preds-bf.test$brozek)^2))
+  width[i] = mean(preds[,3]-preds[,2])
+  coverage[i] = mean(preds[,2] < bf.test$brozek & preds[,3] > bf.test$brozek)
+}
+
+mean(bias)
+mean(rpmse)
+mean(coverage)
+mean(width)
+range(bodyFat$brozek)
+sd(bodyFat$brozek)
+
+summary(bodyfat.lm)$r.squared
+```
+After performing a cross validation procedure using 25 randomly selected observations as our test data (10%), we calculated a bias of 0.04154265% body fat. This tells us that on average our predictions are a minuscule amount too high. We also calculated RPMSE to be 7.8628, meaning that on average our predictions of body fat were off by 7.8628%. Though the bias is quite low and thus really "good", our RPMSE is quite large (the prediction is off by approximately a whole standard deviation on average) and thus not so good. We calculated a coverage of 0.9526, with only insignificant over-coverage from the nominal value of 0.95 and a width of 16.3236% body fat. Since the RPMSE and width are so high, we would say that this model is not "good" in accurately predicting body fat.
+
+We have an $R^2$ value of 0.7464, which means that 0.7464 of the variance in body fat can be explained away by the effect our 13 measured attributes. This is a decent fit, but not amazing.
+
+
+7.
+
+```{r}
+measurements <- c(50, 203, 67, 40.2, 114.8, 108.1, 102.5, 61.3, 41.1, 24.7, 34.1, 31, 18.3)
+predBodyFat <- sum(bodyfat.lm$coefficients*c(1, measurements))
+predBodyFat
+```
+
+We use a model to make a prediction by multiplying each measurement by its respective coefficient from the model, summing them all together, and adding the intercept $\beta_0$ to get our estimated value of body fat percentage. We predicted a body fat percentage of 31.3036% for this individual.

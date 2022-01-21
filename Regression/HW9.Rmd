@@ -1,0 +1,133 @@
+---
+title: "Bike Share HW"
+author: "Neil Thompson"
+date: "4/7/2021"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo = F, results = F, message=FALSE}
+library(bestglm)
+library(car)
+library(knitr)
+load("Data/bikes.RData")
+```
+
+#1
+We have a data set of daily observations of number of bikes used in Washington D.C. The other data collected about the days are things such as weather and whether or not the day was a holiday or a workday. We would like to predict how many bikes will be used on a given day based on the data we can gather beforehand. We will be using a poisson model which will linearly correlate the chosen covariates with the log of the mean of a poisson distribution to represent the bike count distribution.
+
+#2
+A traditional multiple regression model will not work for various reasons. A traditional model can predict negative values for the response variable, which is impossible for bike counts. It is quite unlikely to be ideally linear since we have a 0 bound. Also, higher quantities will have higher variances; i.e. a model that predicts highly will have a larger variance than a model that predicts close to 0. All of these can be overlooked if the data is far enough from 0, but we can do better.
+
+#3
+
+
+```{r, echo = F, results = F, message=FALSE}
+bpois = bestglm(bikes,family = poisson,method = "exhaustive", IC = "AIC")
+bpoisM = bpois$BestModel
+summary(bpoisM)
+```
+
+We ran an exhaustive variable selection on our model with AIC as our criteria, since it is used for prediction more than BIC. CV was not possible since multiple covariates had more than 2 categorical levels. We found that all factors included in our dataset are important in predicting the number of bikes rented (except the weather being Heavy Precip, of which there is no data).
+
+#4
+
+$$\log(\mu_i) = \beta_0 + \sum_{p=1}^{11}x_{ip}\beta_p$$ where $\mu_i$ represents the mean of the poisson distribution from which our bike count is drawn, based on the data.
+
+$x_{i1}$ is 1 if the season is summer, 0 otherwise.
+$x_{i2}$ is 1 if the season is fall, 0 otherwise.
+$x_{i3}$ is 1 if the season is winter, 0 otherwise.
+$x_{i4}$ is 1 if the year is 2012, 0 otherwise.
+$x_{i5}$ is 1 if the day is a holiday, 0 otherwise.
+$x_{i6}$ is 1 if the day is a working day, 0 otherwise.
+$x_{i7}$ is 1 if the weather is misty, 0 otherwise.
+$x_{i8}$ is 1 if the weather is light precipitation, 0 otherwise.
+$x_{i9}$ is the temperature.
+$x_{i10}$ is the humidity.
+$x_{i11}$ is the windspeed.
+
+```{r, echo = F, message=FALSE}
+plot(bikes$windspeed, log(bikes$cnt + 1))
+avPlots(bpoisM)
+```
+We see here a scatterplot showing the windspeed plotted against the log of the count + 1. It does not show any non-linear relationship. We also see in the avPlots no sign of nonlinearity. Thus we may assume linearity of the log-mean.
+We make the independence assumption confidently based on the nature of the data.
+We assume the data is poisson distributed since the data is based off of counts.
+
+#5
+```{r, echo=F, message=FALSE}
+beta_hat = coef(bpoisM)
+CI = confint(bpoisM)
+confTemp <- exp(CI[10,])
+kable(CI)
+```
+Above are the confidence intervals, where the following correspond:
+
+$\hat{\beta_0}$ (Intercept)
+
+$\hat{\beta_1}$ seasonSummer
+
+$\hat{\beta_2}$ seasonFall
+
+$\hat{\beta_3}$ seasonWinter
+
+$\hat{\beta_4}$ yr2012
+
+$\hat{\beta_5}$ holidayYes
+
+$\hat{\beta_6}$ workingdayYes
+
+$\hat{\beta_7}$ weathersitMisty
+
+$\hat{\beta_8}$ weathersitLight Precip
+
+$\hat{\beta_9}$ temp
+
+$\hat{\beta_{10}}$ hum
+
+$\hat{\beta_{11}}$ windspeed
+
+Holding all else constant, we are 95% confident that as temperature increases by 1, the mean number of bikes used changes by a factor of between 3.354 and 3.430.
+
+#6
+We have a predicted average number of bikes rented on that day as 3066.86 and a 95% confidence interval for it of (2971.038, 3165.769). We are 95% confident that the the mean number of bikes used on a day with this data is between 2971.038 and 3165.769.
+
+CODE:
+```{r allcode, eval = F}
+library(bestglm)
+library(car)
+library(knitr)
+load("Data/bikes.RData")
+
+#3
+bpois = bestglm(bikes,family = poisson,method = "exhaustive", IC = "AIC")
+bpoisM = bpois$BestModel
+summary(bpoisM)
+
+#4
+plot(bikes$windspeed, log(bikes$cnt + 1))
+avPlots(bpoisM)
+
+#5
+beta_hat = coef(bpoisM)
+CI = confint(bpoisM)
+confTemp <- exp(CI[10,])
+library(knitr)
+kable(CI)
+
+#6
+day <- list(season="Spring", yr="2012", holiday="No", workingday="Yes",
+weathersit="Misty", temp=0.34, hum=0.80, windspeed=0.18)
+pred = predict.glm(bpoisM,newdata=day,se.fit=TRUE)
+pred$fit
+CI_log = pred$fit + c(-1,1) * qnorm(1 - 0.05 / 2) * pred$se.fit
+exp(CI_log)
+```
+
+

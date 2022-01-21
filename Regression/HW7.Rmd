@@ -1,0 +1,115 @@
+---
+title: "HW7"
+author: "Neil Thompson"
+date: "3/17/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(splines)
+snow <- read.csv("Data/snow_core.csv")
+snow$Core <- factor(snow$Core)
+library(ggplot2)
+```
+#1 
+This analysis will be made to understand data patterns in each of the 14 cores to infer and predict snow density based on depth. One main goal will be to see in the patterns are different in each core or if they can belong to the same regression model.
+
+#2
+The outcome is the snow density in g/cm$^3$ and the explanatory variables are the core level and the depth in m.
+
+#3
+```{r,echo = F}
+lm_noint <- lm(Density~., data=snow)
+lm_int <- lm(Density~Depth*Core, data=snow)
+AIC(lm_noint)
+AIC(lm_int)
+summary(lm_noint)$r.squared
+summary(lm_int)$r.squared
+```
+For the model with no interaction, we received an AIC of -50348.49 and an $R^2$ value of 0.8094, which means that 80.94% of the variability in ice density in this part of Antarctica can be explained by our model.
+
+For the model with interaction, we received an AIC of -51851.09 and an $R^2$ value of 0.8320, which means that 83.2% of the variability in ice density in this part of Antarctica can be explained by our model.
+
+#4
+```{r,echo=F}
+lm_poly <- lm(Density~poly(Depth, 3) + Core, data = snow)
+lm_poly_int <- lm(Density~poly(Depth, 3)*Core, data = snow)
+AIC(lm_poly)
+AIC(lm_poly_int)
+summary(lm_poly)$r.squared
+summary(lm_poly_int)$r.squared
+```
+For the model with no interaction, we received an AIC of -55594.03 and an $R^2$ value of 0.8764, which means that 87.64% of the variability in ice density in this part of Antarctica can be explained by our model.
+
+For the model with interaction, we received an AIC of -57519.7 and an $R^2$ value of 0.8952, which means that 87.64% of the variability in ice density in this part of Antarctica can be explained by our model.
+
+#5
+```{r, echo=F}
+lm_spline <- lm(Density ~ bs(Depth,knots = quantile(Depth,c(0.5)), degree = 3) + Core, data = snow)
+lm_spline_int <- lm(Density ~ bs(Depth,knots = quantile(Depth,c(0.5)), degree = 3) * Core, data = snow)
+AIC(lm_spline)
+AIC(lm_spline_int)
+summary(lm_spline)$r.squared
+summary(lm_spline_int)$r.squared
+```
+For the model with no interaction, we received an AIC of -55616.3 and an $R^2$ value of 0.8766, which means that 87.66% of the variability in ice density in this part of Antarctica can be explained by our model.
+
+For the model with interaction, we received an AIC of -57771.92 and an $R^2$ value of 0.8976, which means that 89.76% of the variability in ice density in this part of Antarctica can be explained by our model.
+
+#6
+```{r, echo = F}
+lm_spline_int
+```
+The model with the lowest AIC was the cubic spline model with spline of Depth vs Core interaction and thus has 61 terms including the intercept. Since there are interactions, there are 2 different cubic curves for each core, one for the lower half of the data (by depth) and one for the upper half. Two large disadvantages for this model are the quantity and uninterpretability of the coefficients. This makes the model difficult to describe and interpret. However, the $R^2$ is 0.8976 which means that almost 90% of the variability in ice density in this part of Antarctica can be explained by our model.
+
+#7
+$\hat{\beta_0} \approx$ 0.3655. Thus at a depth of 0m in Core 1, we would predict the snow density to be 0.3655 g/cm$^3$. 
+
+#8
+```{r,echo=F}
+core1 <- snow[snow[,1] == 1, ]
+pred = predict(lm_spline_int,newdata = core1,interval = "confidence")
+depth_pred = data.frame(core1[,2], pred)
+ggplot(core1) + geom_point(aes(x = Depth,y = Density)) + geom_line(data = depth_pred, aes(x = core1...2., y = fit),size=1,col="green") +
+  geom_line(data = depth_pred, aes(x = core1...2., y = lwr),size=1,col="red") +
+geom_line(data = depth_pred, aes(x = core1...2., y = upr),size=1,col="blue")
+```
+It looks to be capturing the curve well.
+
+```{r, eval=FALSE}
+library(splines)
+snow <- read.csv("Data/snow_core.csv")
+snow$Core <- factor(snow$Core)
+library(ggplot2)
+#3
+lm_noint <- lm(Density~., data=snow)
+lm_int <- lm(Density~Depth*Core, data=snow)
+AIC(lm_noint)
+AIC(lm_int)
+summary(lm_noint)$r.squared
+summary(lm_int)$r.squared
+#4
+lm_poly <- lm(Density~poly(Depth, 3) + Core, data = snow)
+lm_poly_int <- lm(Density~poly(Depth, 3)*Core, data = snow)
+AIC(lm_poly)
+AIC(lm_poly_int)
+summary(lm_poly)$r.squared
+summary(lm_poly_int)$r.squared
+#5
+lm_spline <- lm(Density ~ bs(Depth,knots = quantile(Depth,c(0.5)), degree = 3) + Core, data = snow)
+lm_spline_int <- lm(Density ~ bs(Depth,knots = quantile(Depth,c(0.5)), degree = 3) * Core, data = snow)
+AIC(lm_spline)
+AIC(lm_spline_int)
+summary(lm_spline)$r.squared
+summary(lm_spline_int)$r.squared
+#6
+lm_spline_int
+#8
+core1 <- snow[snow[,1] == 1, ]
+pred = predict(lm_spline_int,newdata = core1,interval = "confidence")
+depth_pred = data.frame(core1[,2], pred)
+ggplot(core1) + geom_point(aes(x = Depth,y = Density)) + geom_line(data = depth_pred, aes(x = core1...2., y = fit),size=1,col="green") +
+  geom_line(data = depth_pred, aes(x = core1...2., y = lwr),size=1,col="red") +
+geom_line(data = depth_pred, aes(x = core1...2., y = upr),size=1,col="blue")
+```

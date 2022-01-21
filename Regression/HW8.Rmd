@@ -1,0 +1,295 @@
+---
+title: "Diabetes"
+author: "Neil Thompson"
+date: "4/2/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(bestglm)
+```
+
+```{r,echo=F}
+rm(list = ls()) #### delete all variables
+diab = read.table("Data/Diabetes.txt", header=TRUE)
+flag = which(apply(diab[,2:6],1,function(x){ any(x == 0 )}))
+diab = diab[-flag,]
+attach(diab)
+```
+
+#1
+We are given a dataset with data about 768 women believed to be at risk for diabetes. Since early detection is so important to the treatment of Type 2 diabetes, we would like to know if and how much certain risk factors and demographic information affect whether or not a woman has diabetes. We will create a logistic regression model that will use up to 8 covariates to make predictions about the probability of diabetes occuring in a woman.
+
+#2
+```{r,echo=F}
+boxplot(age ~ diabetes)
+boxplot(bmi ~ diabetes)
+boxplot(pedigree ~ diabetes)
+
+ggplot(diab,aes(x=glucose,y=diabetes)) + geom_jitter(width=.5,height=.1) + 
+  geom_smooth()
+
+ggplot(diab,aes(x=bmi,y=diabetes)) + geom_jitter(width=.5,height=.1) + 
+  geom_smooth()
+```
+We see here a positive correlation between bmi and likelihood of diabetes. The relationship appears to be generally monotone; as bmi increases the proportion of women with diabetes increases consistently. We also see a similar monotone positive correlation between glucose concentration and likelihood of diabetes.
+A traditional multiple linear regression model would not work for this problem because our response variable is categorical, not quantitative. We cannot produce a binary quantity multiplying coefficients by measured covariates. 
+
+#3 
+```{r,echo=F}
+var.select = bestglm(diab,IC="AIC",family=binomial,
+                     method = "exhaustive")
+var.select$BestModel
+```
+
+I ran a variable selection with AIC as the criteria and an exhaustive algorithm. I chose the exhaustive algorithm because we have few covariates and even checking all possible models is not computationally expensive. I chose the AIC since it is likely we will want to predict diabetic likelihood of women at risk and since we don't have too many covariates we don't need to penalize model complexity like the BIC would. The factors that are important in explaining the presence of diabetes are the variables $pregnant, glucose, bmi, pedigree, age$. 
+
+#4
+log$\left(\frac{p_i}{1-p_i}\right) = \beta_0 + \sum_{j=1}^P x_{ij}\beta_{ij}$
+
+$x_{i1}$ is the amount of times the ith woman has been pregnant
+$x_{i2}$ is the plasma glucose concentration of the ith woman
+$x_{i3}$ is the bmi of the ith woman
+$x_{i4}$ is the diabetes pedigree value of the ith woman
+$x_{i5}$ is the age of the ith woman
+
+```{r,echo=F}
+car::avPlots(var.select$BestModel)
+```
+We see that the added-variable plots of the variables with the log(odds) of diabetes have generally linear looking data, with a possible exception in the glucose avplot. We thus assume linearity of log odds. We also assume independence of the diabetes outcome and a bernoulli distribution of the data, seen by the binary nature.
+
+#5
+```{r,echo=F}
+best_model = glm(diabetes ~ pregnant + glucose + bmi + pedigree + age, data=diab, family="binomial")
+summary(best_model)
+confint(best_model)
+```
+We are 95% confident that, holding all else constant, as bmi increases by 1 the log(odds) of diabetes goes up by between 0.038749 and 0.119844.
+
+#6
+
+```{r,echo=F}
+pred.probs = predict.glm(best_model,type="response")
+
+n_cutoff = 100
+cutoff = seq(0.05,0.95,length=n_cutoff)
+misclass_rate = rep(0,n_cutoff)
+sensitivity = rep(0,n_cutoff)
+specificity = rep(0,n_cutoff)
+for(i in 1:n_cutoff){
+  preds = 1 * (pred.probs > cutoff[i])               ##### predict 
+  conf.mat = table(preds,diab$diabetes)                  ##### get confusion matrix
+  misclass_rate[i] = 1 - sum(diag(conf.mat))/sum(conf.mat)    #### get misclassification rate
+  sensitivity[i] = conf.mat[2,2] / (conf.mat[2,2] + conf.mat[1,2]) 
+  specificity[i] = conf.mat[1,1] / (conf.mat[1,1] + conf.mat[2,1]) 
+}
+min(misclass_rate)
+cutoff[misclass_rate < 0.1964287]
+plot(cutoff, misclass_rate, type = "l")
+```
+An appropriate threshold/cutoff would be about 0.42. Values around 0.42 give a misclassification rate of 0.19643.
+
+#7
+
+```{r,echo=F}
+threshold = 0.42
+pred.probs = predict.glm(best_model,type="response")
+
+preds = 1 * (pred.probs > threshold)
+
+conf.mat = table(preds,diabetes)            ##### confusion matrix
+conf.mat
+
+library(pROC)
+
+my.roc = roc(diabetes,pred.probs)
+auc(my.roc)
+
+## Pseudo R^2  --- Deviance = -2 * log-likelihood
+
+1 - best_model$deviance/best_model$null.deviance 
+
+### sensitivity
+
+conf.mat[2,2] / (conf.mat[2,2] + conf.mat[1,2])    ## TP/(TP + FN)
+
+### specificity 
+
+conf.mat[1,1] / (conf.mat[1,1] + conf.mat[2,1])    ## TN/(FP + TN)
+
+###  Positive predictive value
+
+conf.mat[2,2] / (conf.mat[2,2] + conf.mat[2,1])    ## TP/(FP + TP)
+
+###  Negative predictive value
+
+conf.mat[1,1] / (conf.mat[1,1] + conf.mat[1,2])    ## TN/(FN + TN)
+```
+We had a pseudo-R$^2$ of 0.3076 and an AUC of 0.8631. Our model did quite well at predicting when a woman did not have diabetes, with an average specificity of 0.8740. It predicted when a woman did have diabetes with an average sensitivity of 0.6538. Of all predicted negatives, 0.8358 were predicted correctly and of all predicted positives, 0.7203 were predicted correctly, on average.
+
+#8
+```{r,echo=F}
+n.test = 39
+n.cv = 1e3
+n = 392
+sensitivity = numeric(n.cv)
+specificity = numeric(n.cv)
+ppv = numeric(n.cv)
+npv = numeric(n.cv)
+
+for(i in 1:n.cv){
+  test.obs = sample(1:n,n.test)
+  di.test = diab[test.obs,]
+  di.train = diab[-test.obs,]
+  train.glm = glm(diabetes ~ pregnant + glucose + bmi + pedigree + age, data=di.train, family = "binomial")
+  predprob <- predict.glm(train.glm,newdata=di.test, type = "response")
+  preds = 1 * (predprob > threshold)
+  conf.mat = table(preds,di.test$diabetes) 
+  sensitivity[i] <- conf.mat[2,2] / (conf.mat[2,2] + conf.mat[1,2])
+  specificity[i] <- conf.mat[1,1] / (conf.mat[1,1] + conf.mat[2,1])
+  ppv[i] <- conf.mat[2,2] / (conf.mat[2,2] + conf.mat[2,1])
+  npv[i] <- conf.mat[1,1] / (conf.mat[1,1] + conf.mat[1,2])
+}
+
+mean(sensitivity)
+mean(specificity)
+mean(ppv)
+mean(npv)
+```
+
+Our cross-validation study  showed that our model did well at predicting when a woman did not have diabetes, with an average specificity of 0.8600. It predicted when a woman did have diabetes with an average sensitivity of 0.6481. Of all predicted negatives, 0.8300 were predicted correctly and of all predicted positives, 0.6999 were predicted correctly, on average.
+
+#9
+
+```{r,echo=F}
+patient_data <- c(1,90,25.1,1.268,25)
+log_odds_patient <- sum(best_model$coefficients*c(1,patient_data))
+p <- exp(log_odds_patient)/(1+exp(log_odds_patient))
+p
+```
+The predicted probability of diabetes for a woman with the given information is 0.0873. I do not believe the woman has diabetes since the probability is low. 
+
+```{r, eval=F}
+##1
+library(ggplot2)
+library(bestglm)
+
+rm(list = ls()) #### delete all variables
+diab = read.table("Data/Diabetes.txt", header=TRUE)
+flag = which(apply(diab[,2:6],1,function(x){ any(x == 0 )}))
+diab = diab[-flag,]
+attach(diab)
+
+##2
+boxplot(age ~ diabetes)
+boxplot(bmi ~ diabetes)
+boxplot(pedigree ~ diabetes)
+
+ggplot(diab,aes(x=glucose,y=diabetes)) + geom_jitter(width=.5,height=.1) + 
+  geom_smooth()
+
+ggplot(diab,aes(x=bmi,y=diabetes)) + geom_jitter(width=.5,height=.1) + 
+  geom_smooth()
+
+##3
+var.select = bestglm(diab,IC="AIC",family=binomial,
+                     method = "exhaustive")
+var.select$BestModel
+
+##4
+car::avPlots(var.select$BestModel)
+
+##5
+best_model = glm(diabetes ~ pregnant + glucose + bmi + pedigree + age, data=diab, family="binomial")
+summary(best_model)
+confint(best_model)
+
+##6
+pred.probs = predict.glm(best_model,type="response")
+
+n_cutoff = 100
+cutoff = seq(0.05,0.95,length=n_cutoff)
+misclass_rate = rep(0,n_cutoff)
+sensitivity = rep(0,n_cutoff)
+specificity = rep(0,n_cutoff)
+for(i in 1:n_cutoff){
+  preds = 1 * (pred.probs > cutoff[i])               ##### predict 
+  conf.mat = table(preds,diab$diabetes)                  ##### get confusion matrix
+  misclass_rate[i] = 1 - sum(diag(conf.mat))/sum(conf.mat)    #### get misclassification rate
+  sensitivity[i] = conf.mat[2,2] / (conf.mat[2,2] + conf.mat[1,2]) 
+  specificity[i] = conf.mat[1,1] / (conf.mat[1,1] + conf.mat[2,1]) 
+}
+min(misclass_rate)
+cutoff[misclass_rate < 0.1964287]
+plot(cutoff, misclass_rate, type = "l")
+
+##7
+threshold = 0.42
+pred.probs = predict.glm(best_model,type="response")
+
+preds = 1 * (pred.probs > threshold)
+
+conf.mat = table(preds,diabetes)            ##### confusion matrix
+conf.mat
+
+library(pROC)
+
+my.roc = roc(diabetes,pred.probs)
+auc(my.roc)
+
+## Pseudo R^2  --- Deviance = -2 * log-likelihood
+
+1 - best_model$deviance/best_model$null.deviance 
+
+### sensitivity
+
+conf.mat[2,2] / (conf.mat[2,2] + conf.mat[1,2])    ## TP/(TP + FN)
+
+### specificity 
+
+conf.mat[1,1] / (conf.mat[1,1] + conf.mat[2,1])    ## TN/(FP + TN)
+
+###  Positive predictive value
+
+conf.mat[2,2] / (conf.mat[2,2] + conf.mat[2,1])    ## TP/(FP + TP)
+
+###  Negative predictive value
+
+conf.mat[1,1] / (conf.mat[1,1] + conf.mat[1,2])    ## TN/(FN + TN)
+
+##8
+n.test = 39
+n.cv = 1e3
+n = 392
+sensitivity = numeric(n.cv)
+specificity = numeric(n.cv)
+ppv = numeric(n.cv)
+npv = numeric(n.cv)
+
+for(i in 1:n.cv){
+  test.obs = sample(1:n,n.test)
+  di.test = diab[test.obs,]
+  di.train = diab[-test.obs,]
+  train.glm = glm(diabetes ~ pregnant + glucose + bmi + pedigree + age, data=di.train, family = "binomial")
+  predprob <- predict.glm(train.glm,newdata=di.test, type = "response")
+  preds = 1 * (predprob > threshold)
+  conf.mat = table(preds,di.test$diabetes) 
+  sensitivity[i] <- conf.mat[2,2] / (conf.mat[2,2] + conf.mat[1,2])
+  specificity[i] <- conf.mat[1,1] / (conf.mat[1,1] + conf.mat[2,1])
+  ppv[i] <- conf.mat[2,2] / (conf.mat[2,2] + conf.mat[2,1])
+  npv[i] <- conf.mat[1,1] / (conf.mat[1,1] + conf.mat[1,2])
+}
+
+mean(sensitivity)
+mean(specificity)
+mean(ppv)
+mean(npv)
+
+##9
+patient_data <- c(1,90,25.1,1.268,25)
+log_odds_patient <- sum(best_model$coefficients*c(1,patient_data))
+p <- exp(log_odds_patient)/(1+exp(log_odds_patient))
+p
+```
