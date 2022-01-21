@@ -1,0 +1,126 @@
+---
+title: 'Stat 251: HW 4'
+author: "Neil Thompson"
+date: "2/25/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+1a. 
+```{r}
+thetaM <- 67/1260
+thetaW <- 173/1700
+alpha <- 0.5
+beta <- 3
+curve(dbeta(x,alpha,beta))
+pbeta(0.1,alpha,beta)
+```
+Prior probability that the proportion of skipped questions is less that 10% is 0.5546.
+
+1b.
+```{r}
+alphaW <- 0.5 + 173
+betaW <- 3 + 1700 - 173
+alphaM <- 0.5 + 67
+betaM <- 3 + 1260 - 67
+alphaW
+betaW
+alphaM
+betaM
+```
+$\theta_W|data \sim$ Beta(173.5, 1530)
+
+$\theta_M|data \sim$ Beta(67.5, 1196)
+
+1c. 
+```{r}
+pbeta(0.1,alphaW,betaW)
+pbeta(0.1,alphaM,betaM)
+```
+Posterior probability that women will skip less than 10% is 0.4081.
+Posterior probability that men will skip less than 10% is approximately 1.
+For women, this probability is lower than that of the prior distribution, but for men this one is much higher.
+
+1d. 
+```{r}
+curve(dbeta(x,alphaW,betaW))
+curve(dbeta(x,alphaM,betaM))
+thetaW.samp <- rbeta(1e6, alphaW, betaW)
+thetaM.samp <- rbeta(1e6, alphaM, betaM)
+diff.samp <- thetaW.samp - thetaM.samp
+plot(density(diff.samp), xlab=expression(thetaW - thetaM), ylab="posterior
+density", main="Posterior Difference between thetaW and thetaM")
+mean(diff.samp<0)
+```
+Yes, women will almost surely skip more questions than men. The probability that men skip more than women is only 1 in 1000000.
+
+2a.
+```{r}
+sdP <- 2.2
+lambda <- sdP^2
+lambda
+```
+$\lambda = 4.84$
+
+2b.
+```{r}
+ppois(3, 1)
+ppois(3, 10)
+ppois(3, 100)
+```
+
+2c.
+```{r}
+plot(0:10, dpois(0:10, 1), pch = 19, xlab = "X", ylab = "Probability")
+plot(0:30, dpois(0:30, 10), pch = 19, xlab = "X", ylab = "Probability")
+plot(0:200, dpois(0:200, 100), pch = 19, xlab = "X", ylab = "Probability")
+```
+The $\lambda = 1$ distribution is not shaped the same as the other two distributions, which are bell shaped. Instead it has its highest values at $X = 0$ and $X = 1$. All three, naturally, range from 0 to infinity and are discrete (as are all Poisson distributions). The higher the $\lambda$ is, the larger the spread and the higher the center.
+
+2d.
+```{r}
+qpois(0.95, 4)
+```
+The 95th percentile of Pois(4) is 8.
+
+2e.
+```{r}
+ppois(8, 4)
+```
+It is higher than 95 because the distribution is discrete. 8 is the first value with a quantile above the 95th percentile and that is why 2d. gave us such an answer.
+
+3a. 
+```{r}
+curve(dgamma(x, 2, 3), xlim = c(0, 6))
+curve(dgamma(x, 6, 3), xlim = c(0, 6))
+```
+We see that as the value of $\gamma$ increases we see less right-skewedness and a larger mean and spread.
+
+3b.
+```{r}
+curve(dgamma(x, 5, 2), xlim = c(0, 6))
+curve(dgamma(x, 5, 9), xlim = c(0, 6))
+```
+We see that as the value of $\phi$ increases, both the mean and spread decrease but the shape remains the same.
+
+3c.
+```{r}
+pgamma(5,2,1.5) - pgamma(2, 2, 1.5)
+```
+$P(2\leq\lambda\leq5|\gamma=2,\phi=1.5) = 0.1944$
+
+3d.
+```{r}
+qgamma(0.025, 2, 1.5)
+qgamma(0.975, 2, 1.5)
+```
+95% probability interval: (0.1615,3.714)
+
+
+
+
+
+
+

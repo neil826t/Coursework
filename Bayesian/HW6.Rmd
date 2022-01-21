@@ -1,0 +1,94 @@
+---
+title: "Stat 251 HW 6"
+author: "Neil Thompson"
+date: "3/15/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+#1a
+```{r 1a}
+lambda <- 1000
+tau <- 200
+sigma <- 40
+data <- c(1010, 1000, 950, 1050)
+n <- length(data)
+lambda1 <- (tau^2*sum(data) + sigma^2*lambda)/(tau^2*n + sigma^2)
+tau1 <- sqrt(sigma^2*tau^2/(tau^2*n + sigma^2))
+lambda1
+tau1
+```
+Posterior distribution: 
+$\mu |$data$, \sigma^2 \sim \mathcal{N}(1002.475, 19.90074^2)$
+
+#1b
+```{r 1b}
+qnorm(c(0.025, 0.975), lambda1, tau1)
+```
+There is a 95% chance that $\mu$ is between 963.47 and 1041.48.
+
+#1c
+```{r 1c}
+lamZeta <- 2203 - 0.835*lambda1
+tauZeta <- 0.835*tau1
+lamZeta
+tauZeta
+```
+Posterior distribution: 
+$\zeta |$data$, \sigma^2 \sim \mathcal{N}(1365.93, 16.617^2)$
+
+#1d
+```{r 1d}
+qnorm(c(0.025, 0.975), lamZeta, tauZeta)
+```
+There is a 95% chance that $\mu$ is between 1333.364 and 1398.502.
+
+#2a
+```{r 2a}
+lambdaS <- 1000
+tauS <- 200
+sigmaS <- 40
+dataS <- c(940, 1040, 910, 990)
+nS <- length(dataS)
+lambdaS1 <- (tauS^2*sum(dataS) + sigmaS^2*lambdaS)/(tauS^2*nS + sigmaS^2)
+tauS1 <- sqrt(sigmaS^2*tauS^2/(tauS^2*nS + sigmaS^2))
+lambdaS1
+tauS1
+```
+Posterior distribution: 
+$\mu_S |$data$, \sigma^2 \sim \mathcal{N}(970.297, 19.90074^2)$
+
+#2b
+```{r 2b}
+lamZetaS <- 2203 - 0.835*lambdaS1
+tauZetaS <- 0.835*tauS1
+lamZetaS
+tauZetaS
+```
+Posterior distribution: 
+$\zeta_S |$data$, \sigma^2 \sim \mathcal{N}(1392.8, 16.617^2)$
+
+#2c
+```{r 2c}
+lam_d <- lamZeta - lamZetaS
+tau_d <- sqrt(tauZeta^2 + tauZetaS^2)
+lam_d
+tau_d
+```
+Posterior distribution: 
+$d |$data$, \sigma^2 \sim \mathcal{N}(-26.869, 23.5^2)$
+
+#2d
+```{r 2d}
+qnorm(c(0.05, 0.95), lam_d, tau_d)
+```
+There is a 90% chance that the mean difference between the calibrated dates for Houhora and Shag River Mouth is between -65.523 and 11.786.
+
+#2e
+```{r 2e}
+curve(dnorm(x, lam_d, tau_d), from = -100, to = 46)
+abline(v = 0)
+```
+Definitely not. Our mean calibrated date for Shag River was 1393 and Houhora was 1366. There is clearly not going to be evidence to say that Shag River was inhabited first. That would be implying that the area in this plot to the left of the vertical line is insignificant.

@@ -1,0 +1,191 @@
+---
+title: "S251 Exam 2"
+author: "Neil Thompson"
+date: "3/19/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#1a
+
+```{r 1a}
+sigmaFarm <- sqrt(0.821)
+lambda <- 6
+tau <- sqrt(10)
+nFarm <- 232
+sumFarm <- 1244
+lambdaPrime <- function(t, sum, s, l, n) {
+  (t^2 * sum + s^2 * l) / (t^2 * n + s^2)
+}
+tauPrime <- function(s, t, n) {
+  sqrt((s^2 * t^2)/(t^2 * n + s^2))
+}
+lambda1Farm <- lambdaPrime(tau, sumFarm, sigmaFarm, lambda, nFarm)
+lambda1Farm
+tau1Farm <- tauPrime(sigmaFarm, tau, nFarm)
+tau1Farm
+
+```
+Let $\lambda_{f}$ represent the mean of the log(SOC) of farmland. Posterior distribution:  $\lambda_{f} |$data$, \sigma_f^2 \sim \mathcal{N}(5.3623, 0.0595^2)$
+
+#1b
+
+```{r 1b}
+sigmaWet <- sqrt(1.45)
+nWet <- 67
+sumWet <- 403
+lambda1Wet <- lambdaPrime(tau, sumWet, sigmaWet, lambda, nWet)
+lambda1Wet
+tau1Wet <- tauPrime(sigmaWet, tau, nWet)
+tau1Wet
+```
+Let $\lambda_{w}$ represent the mean of the log(SOC) of wetland. Posterior distribution:  $\lambda_{w} |$data$, \sigma_w^2 \sim \mathcal{N}(6.0149,0.1470^2)$
+
+#1c
+
+```{r 1c}
+curve(dnorm(x,lambda1Farm,tau1Farm), xlim = c(5,7), col = "red", ylab = "Density", xlab = expression(lambda))
+curve(dnorm(x,lambda1Wet,tau1Wet), add = T, col = "blue")
+legend("topright", c(expression(lambda[f]), expression(lambda[w])), col = c("red", "blue"), lty = 1)
+```
+
+The distribution for $\lambda_f$ is significantly lower and less spread out than the distribution for $\lambda_w$.
+
+#1d
+```{r 1d}
+qnorm(c(0.025, 0.975), lambda1Farm, tau1Farm)
+qnorm(c(0.025, 0.975), lambda1Wet, tau1Wet)
+```
+
+There is a 95% chance that $\lambda_f$ is between 5.2457 and 5.4789.
+
+There is a 95% chance that $\lambda_w$ is between 5.7269 and 6.3039.
+
+#1e
+```{r 1e}
+qnorm(c(0.025, 0.975), lambda1Farm, sigmaFarm)
+qnorm(c(0.025, 0.975), lambda1Wet, sigmaWet)
+```
+
+There is a 95% chance that log(SOC) of farmland is between 3.5864 and 7.1382.
+
+There is a 95% chance that log(SOC) of wetland is between 3.6548 and 8.3750. 
+
+The spread is much larger in these than in part (d), and the spread of wetland is larger than farmland (due to the higher variance).
+
+#1f
+```{r 1f}
+exp(qnorm(c(0.025, 0.975), lambda1Farm, sigmaFarm))
+exp(qnorm(c(0.025, 0.975), lambda1Wet, sigmaWet))
+```
+
+There is a 95% chance that SOC of farmland is between 36.1035 and 1259.16.
+
+There is a 95% chance that SOC of wetland is between 38.6592 and 4337.2783.
+
+#2a
+
+```{r 2a}
+meanPrior <- 1/6
+varPrior <- 0.0235
+alphaBeta <- function(mu, var) {
+  ((1 - mu) / var - 1 / mu) * mu ^ 2
+}
+betaBeta <- function(mu, var) {
+  alpha <- ((1 - mu) / var - 1 / mu) * mu ^ 2
+  alpha * (1 / mu - 1)
+}
+alpha <- alphaBeta(meanPrior, varPrior)
+beta <- betaBeta(meanPrior, varPrior)
+sampAug <- c(199,210,189,186)
+sampMar <- c(205,237,194,231)
+alpha
+beta
+```
+
+The proportion of the US population that had taken prescription medication for their mental health in the four weeks prior to Aug 31, 2020 can be modeled with the prior distribution $\theta_{aug} \sim$Beta$(0.8184, 4.0918)$. The likelihood of receiving such data given a population proportion would be modeled as such: samples$|\theta \sim$Bin$(4000, \theta)$. 
+
+#2b
+```{r 2b}
+alpha1 <- sum(sampAug) + alpha
+beta1 <- 4000 - sum(sampAug) + beta
+alpha1
+beta1
+```
+
+Posterior distribution: 
+$\theta_{aug}$|samples$\sim$Beta$(784.82, 3220.1)$
+
+#2c
+```{r 2c}
+alpha2 <- sum(sampMar) + alpha
+beta2 <- 4000 - sum(sampMar) + beta
+diff <- rbeta(1e6, alpha2, beta2) - rbeta(1e6, alpha1, beta1)
+mean(diff > 0.01)
+```
+
+The posterior probability that between the 2 dates the proportion went up by over 0.01 is approximately 0.8824 using a Monte Carlo approximation with 100000 trials.
+
+#2d
+```{r 2d}
+quantile(diff, c(0.025, 0.975))*1000
+```
+
+There is a 95% chance that the amount more of people per 1000 that have taken medication for mental health in the last four weeks in March than in August is between 3.0395 and 38.395
+
+#2e
+```{r 2e}
+mar <- rbeta(1e6, alpha2, beta2)
+aug <- rbeta(1e6, alpha1, beta1)
+x1 <- rbinom(1e6, 1000, mar)
+x2 <- rbinom(1e6, 1000, aug)
+quantile(x1-x2, c(0.025, 0.975))
+```
+
+There is a 95% chance that the amount more of people in random samples of 1000 will have taken medication for mental health in the last four weeks in March than in August is between -19 and 60. Thus it is quite probably that the difference between the two samples will be between March having 60 more people and August having 19 more people.
+
+#2f
+The size of the credible interval in 2e is much smaller than in 2f because they are calculated differently. The former is comparing the average person in August to the same average person in March, obviously on a large scale, whereas the latter compares the mean of two samples of 1000. When selecting means of samples, the standard error changes, and thus the two calculations are different.
+
+#3a
+```{r 3a}
+bmean <- 7.5
+bvar <- 37.5
+gamma <- bmean^2 / bvar
+phi <- bmean / bvar
+nephi <- c(6,3,0,4,3)
+alma <- c(4,4,18,36,3)
+gammaNephi <- gamma + sum(nephi)
+phiNephi <- phi + 5
+gammaAlma <- gamma + sum(alma)
+phiAlma <- phiNephi
+gammaNephi
+phiNephi
+gammaAlma
+phiAlma
+gammaNephi/phiNephi
+sqrt(gammaNephi/phiNephi^2)
+gammaAlma/phiAlma
+sqrt(gammaAlma/phiAlma)
+```
+
+We have that the posterior distribution for the average number of times "behold" appears in a chapter of 1 Nephi is such: $\lambda_n|$samples$\sim$Gamma$(17.5, 5.2)$.
+
+Similarly for Alma: $\lambda_a|$samples$\sim$Gamma$(66.5, 5.2)$.
+
+These can be shown in the following curves:
+```{r 3aPlots}
+curve(dgamma(x, gammaNephi, phiNephi), xlim = c(0,20), col = "red", ylab = "density", xlab = expression(lambda))
+curve(dgamma(x, gammaAlma, phiAlma), add = T, col = "blue")
+legend("topright", c(expression(lambda[n]), expression(lambda[a])), col = c("red", "blue"), lty=1)
+```
+We see that the mean and spread of the average appearances of behold per chapter in 1 Nephi is significantly less than in Alma. Specifically the mean of in 1 Nephi is 3.365 and the average's variance $0.804^2$, while in Alma the mean is 12.788 with a slightly larger average's variance of 3.576.
+
+#3b
+A strength of this analysis is that we can see that there is some significant difference between the two chapters and thus make a confident assumption about at least the difference in behold usage between the chapters
+
+#3c
+This analysis has many weakness. The one that comes to mind first is that we have no idea if the usage of the word behold carries any significance with determining authorship. We definitely do not have enough data in the Book of Mormon to make a confident test of authorship.

@@ -1,0 +1,87 @@
+---
+title: "Exam 1"
+author: "Neil Thompson"
+date: "2/18/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+1a.
+
+$X|\theta$ ~ $Bin(n = 500, \theta = 30/500)$
+$\pi(X|\theta) = {500 \choose x}(0.06)^x(0.94)^{500-x}$
+
+1b. 
+
+$\theta$ ~ $Beta(\alpha = 1.5, \beta = 13.5)$
+
+1c.
+```{r 1c}
+pbeta(.1, 1.5, 13.5)
+```
+Probability of such occurance under the prior distribution is 0.5921
+
+1d.
+
+$\theta|X$ ~ $Beta(\alpha = 30 + 1.5, \beta = 470 + 13.5) = Beta(31.5, 483.5)$
+
+1e.
+```{r 1e}
+pbeta(.1, 31.5, 483.5)
+```
+Probability of such an occurance under the posterior distribution is 0.9993
+
+1f.
+
+The friend's observation may very well be true about his school, but that does not mean that it is representative of the state of Utah as a whole. Many other factors play into high school students being in high level math classes than just state. We expect there to be some variation between schools; some will have higher-than-average proportions while others will have lower-than-average proportions. There are many schools in Utah.
+
+
+2a. 
+
+We have that, by Bayes' formula, $\pi(\theta|data) = \frac{f(data|\theta)\pi(\theta)}{\sum_{all \theta^*} f(data|\theta^*)\pi(\theta^*)}$
+```{r 2a}
+likelihood <- function(theta) {
+  (2*theta)^5 * exp(2*6.613 + theta - theta*(235.7727))
+}
+prior <- function(theta) {
+  if (theta == 1) {
+    return (0.3)
+  } else if (theta == 0.1) {
+    return (0.3) 
+  } else if (theta == 0.001) {
+    return (0.4)
+  }
+  0
+}
+prior_thetas <- c(0.3, 0.3, 0.4)
+thetas <- c(1, 0.1, 0.001)
+normConst <- sum(likelihood(thetas) * prior_thetas)
+posterior <- function(theta) {
+  likelihood(theta) * prior(theta) / normConst 
+}
+posterior(1)
+posterior(0.1)
+posterior(0.001)
+```
+
+We have a posterior distribution as follows: $\pi(\theta|data) =$ 6.4767e-88 if $\theta$ = 1, 0.3765 if $\theta$ = 0.1, and 0.6235 if $\theta$ = 0.001.
+
+2b. 
+
+The company should use the $\theta$ = 0.001 parameter since the probability, given the data received, of $\theta$ = 0.001 is higher than the other two options.
+
+
+
+3.
+
+- Faith is not a perfect knowledge of things - neither is your prior distribution. A prior distribution, just like faith, is the best you can do without any data/experience but usually comes with some sort of consultation with others (or the scriptures).
+
+- Planting the seed in your heart is collecting data. When you get data, you feel good, you feel those swelling motions, and it begins to be delicious to you (you start to make judgments about your prior).
+
+- Once you have collected your data, you can model a likelihood distribution (your feelings about the word). As you gather more data, your likelihood distribution starts to carry more weight compared to the prior distribution (your initial step of faith matters less than the experiences you've had).
+
+- With that you can calculate a posterior distribution using your likelihood distribution. Your posterior distribution are the decisions based on your faith and the things you are feeling. The more things you've felt, the less you are making decisions by faith and more you are making them by the things you've experienced.
+
+- As you gather more data, you come to find that the spread of your posterior distribution decreases and thus uncertainty decreases. Similarly, as you experiment more and more on the word, your faith eventually grows dormant just like the prior distribution because you've had so much knowledge and experience you are no longer unsure at all - no uncertainty (I believe this only happens to few people in this life). 

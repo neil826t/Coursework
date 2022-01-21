@@ -1,0 +1,106 @@
+---
+title: "Stat 251 HW 5"
+author: "Neil Thompson"
+date: "3/8/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+#1a 
+Since $\lambda$ follows a Gamma(0.5, 0.5) distribution, $E(\lambda) = \frac{0.5}{0.5} = 1$ and since $\lambda$ is the mean of the distribution of number of potholes, the a priori expected value will also be 1.
+
+#1b 
+```{r}
+data <- c(3,3,7,1,4,6,6,7,3,1,5,5,5,3,3,0,3,1,2,2)
+mean(data)
+gamma0 <- 0.5
+phi0 <- 0.5
+gamma1 <- gamma0 + sum(data)
+phi1 <- phi0 + length(data)
+```
+Using the derivation of the posterior, we calculated that $\lambda|data \sim$ Gamma(70.5, 20.5).
+
+#1c
+```{r plot1c}
+curve(dgamma(x, gamma0, phi0), xlim=c(0, 10), xlab=expression(lambda), ylab="prior", lwd=2, col = "red")
+curve(dgamma(x, gamma1, phi1), xlim=c(0, 10), xlab=expression(lambda), col = "blue", lwd=2, add = TRUE)
+legend(6, 0.8, c("prior", "posterior"), col = c("red", "blue"), lty = 1, lwd = 2)
+```
+#1d
+```{r}
+70.5/20.5
+```
+Their belief a posteriori about the expected number needing repair will be $\frac{\gamma'}{\phi'} = \frac{70.5}{20.5} \approx 3.439$ potholes.
+
+#1e
+```{r}
+qgamma(c(0.025, 0.975), gamma1, phi1)
+```
+There is a 95% chance that, given our data, the value of $lambda$ for the Poisson is in the interval (2.683, 4.287).
+
+#1f
+```{r}
+1 - pgamma(4, gamma1, phi1)
+```
+$P(\lambda > 4|$data$) \approx 0.090$. Thus there is approximately a 9% chance that the mean number of potholes that need to repaired in a block is above 4.
+
+#1g
+```{r}
+1 - pnbinom(4, gamma1, phi1/(1+phi1))
+```
+A probability of 0.2655 was calculated that the actual number of potholes on any given pothole is greater than 4. This probability is larger than the probability above because it is a probability of an observation, not the probability of a parameter. A distribution of a mean (as expressed above) has a lower variance than the distribution of an observation.
+
+#2a
+```{r}
+gammaMW0 <- 8
+phiMW0 <- 1.5
+EV0 <- gammaMW0/phiMW0 
+Var0 <- gammaMW0/(phiMW0)^2
+EV0
+Var0
+```
+The prior expected values and variances for $\lambda_M$ and $\lambda_W$ will be the same since they come from the same distribution, with $E(\lambda) = 5.\overline3$ and $Var(\lambda) = 3.\overline5$.
+
+#2b
+```{r}
+data_women <- c(12,9,10,8,9,4,10,15,3,5,11,8,9,4,2,7,9,5,4,2,3,12,10,2,9,8,13,9,7,6,6,2,2,6,8)
+data_men <- c(2,3,0,4,1,1,1,2,2,2,0,3,2)
+gammaW1 <- gammaMW0 + sum(data_women)
+phiW1 <- phiMW0 + length(data_women)
+gammaM1 <- gammaMW0 + sum(data_men)
+phiM1 <- phiMW0 + length(data_men)
+gammaW1
+phiW1
+gammaM1
+phiM1
+```
+$\lambda_W \sim$ Gamma(257, 36.5)
+
+$\lambda_M \sim$ Gamma(31, 14.5)
+
+#2c
+```{r}
+qgamma(c(0.025, 0.975), gammaW1, phiW1)
+qgamma(c(0.025, 0.975), gammaM1, phiM1)
+```
+There is a 95% chance that $\lambda_W$ is in the interval (6.2065, 7.9276).
+
+There is a 95% chance that $\lambda_M$ is in the interval (1.4526, 2.9536).
+
+#2d
+```{r}
+draws_women <- rgamma(1e6, gammaW1, phiW1)
+draws_men <- rgamma(1e6, gammaM1, phiM1)
+draws_diff <- draws_women - draws_men
+hist(draws_diff, freq = F, breaks = 100, xlab = expression(lambda[W] - lambda[M]), main = "posterior distribution of d")
+mean(draws_diff)
+```
+On average, women keep 4.9036 more bottles in the shower than men.
+
+
+
+
+
+

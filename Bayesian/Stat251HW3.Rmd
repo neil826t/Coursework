@@ -1,0 +1,114 @@
+---
+title: "Stat 251 Assignment 1"
+author: "FirstName LastName"
+date: "2/9/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+1a. 
+```{r answer1a}
+meanBeta <- function(alpha, beta) {
+  alpha/(alpha + beta)
+}
+meanBeta(41, 59)
+meanBeta(4.1, 5.9)
+```
+Not creatively, I got 2 pairs - $\alpha_1 = 4.1, \beta_1 = 5.9$; $\alpha_2 = 41, \beta_2 = 59$.
+
+1b. 
+```{r answer1b}
+plot.new()
+curve(dbeta(x , 4.1, 5.9),ylim = c(0,8))
+curve(dbeta(x, 41, 59), add = TRUE)
+```
+The latter ($\alpha_2 = 41, \beta_2 = 59$) distribution is much more "peaked" i.e. has a much lower variance and a slightly higher median since it isn't as much right-skewed as the former.
+
+1c. 
+
+$\frac{\alpha}{\alpha + \beta} < 0.5$ then $2\alpha < \alpha + \beta$, or any value of $\alpha$ and $\beta$ that satisfies $\alpha < \beta$.
+
+1d. 
+
+$\frac{\alpha}{\alpha + \beta} = 0.5$ then $2\alpha = \alpha + \beta$, or any value of $\alpha$ and $\beta$ that satisfies $\alpha = \beta$.
+
+1e. 
+```{r answer1e}
+varBeta <- function(alpha, beta) {
+  (alpha*beta)/(((alpha + beta)^2) * (alpha + beta + 1))
+}
+varBeta(4.1,5.9)
+varBeta(41, 59)
+```
+Var$(\theta)$ with $\alpha_1, \beta_1 = 0.022$
+
+Var$(\theta)$ with $\alpha_2, \beta_2 = 0.0024$
+
+The number do reflect what we saw in the graph - a much smaller variance in the latter distribution.
+
+1f. 
+```{r answer1f}
+1 - pbeta(0.1, 2, 7)
+```
+$P(\theta > 0.1) = 0.8131$
+
+1g. 
+```{r answer1g}
+qnorm(0.4, 2, 7)
+```
+$b = 0.2266$
+
+2a. 
+
+If the prior is a Beta(1, 4), then the posterior is a Beta(1 + 17, 4 + (116 - 17)) = Beta(18, 103) 
+
+2b. 
+```{r answer2b}
+meanBeta(18, 103)
+varBeta(18, 103)
+```
+
+2c. 
+```{r answer2c}
+qbeta(c(0.025, 0.975), 18, 103)
+```
+We have a credible interval of (0.0914, 0.2171), which is the interval inside which there is a probability of 0.95 in our posterior distribution that theta lies. $P(0.0914 < \theta < 0.2171) = 0.95$
+
+2d.
+
+Honestly I'm not a very risk averse person so if I was thirsty I probably would drink the water if I didn't have other water. If I did have other, better water, I would not drink the NZ stream water because of the approximately 15% chance of it carrying $Giardia$.
+
+3a. 
+
+We know since the mean is 0.5 that $\alpha = \beta$. Then substituting $\alpha$ in for $\beta$ we get $(\alpha^2)/(((2\alpha)^2)(2\alpha + 1))$ which reduces to $\frac{1}{8\alpha + 4} = 0.0225 = \frac{9}{400}$, which  gives us an $\alpha = \beta = \frac{91}{18} = 5.05556$.
+```{r answer3a}
+91/18
+meanBeta(91/18, 91/18)
+varBeta(91/18, 91/18)
+```
+
+3b. 
+```{r answer3b}
+#Include your code for answer 3b here.  If no code is required, delete this chunk (remove everything between and including the ```)
+```
+$\alpha + \beta = \frac{91}{9} = 10.1111$ is the equivalent sample size  
+
+3c. 
+
+$x = 21$, $n - x = 47$, so our posterior is Beta(26.0556, 52.0556).
+
+3d. 
+```{r answer3d}
+plot.new()
+curve(dbeta(x,91/18,91/18),ylim = c(0,8),ylab = "density")
+curve(dbeta(x,469/18,937/18), add = TRUE)
+```
+
+3e. 
+```{r answer3e}
+qbeta(c(0.05, 0.95), 469/18,937/18)
+```
+We have a credible interval of (0.2488, 0.4232), which is the interval inside which there is a probability of 0.90 in our posterior distribution that theta lies. $P(0.2488 < \theta < 0.4232) = 0.90$

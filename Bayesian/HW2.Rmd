@@ -1,0 +1,110 @@
+---
+title: "Stat 251 Assignment 2"
+author: "Neil Thompson"
+date: "1/26/2021"
+output:  pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+1a. The prior of $\lambda$ can be defined as $\pi(\lambda)$ = 0.1 if $\lambda$ = 0.5, 0.2 if $\lambda$ = 1, 0.7 if $\lambda$ = 2, and 0 otherwise.
+
+1b. 
+```{r answer1b}
+exp(-0.5)/10
+exp(-0.5)/20
+```
+1c.
+```{r answer1c}
+7/(10*exp(2))
+7/(5*exp(2))
+```
+1d.
+```{r answer1d}
+exp(-0.5)*0.1+exp(-1)*0.2+exp(-2)*0.7
+exp(-0.5)*0.1*0.5+exp(-1)*0.2+exp(-2)*0.7*2
+0.5*(exp(-0.5)*0.1*0.25+exp(-1)*0.2+exp(-2)*0.7*4)
+(1/6)*(exp(-0.5)*0.1*0.125+exp(-1)*0.2+exp(-2)*0.7*8)
+```
+1h.
+```{r answer1h}
+priorX <- function(x) {
+  m_X <- (1/factorial(x))*(exp(-0.5)*0.1*(0.5)^x+exp(-1)*0.2+exp(-2)*0.7*2^x)
+  m_X
+}
+sum(priorX(0:20)*(0:20))
+```
+1i.
+```{r answer1i}
+exp(-1)*0.2/priorX(1)
+exp(-2)*0.7*2/priorX(1)
+```
+2.
+```{r answer2}
+dbinom(3, 11, 0.6)
+dbinom(3, 11, 0.4)
+dbinom(3, 11, 0.3)
+dbinom(3, 11, 0.2)
+dbinom(3, 11, 0.27)
+dbinom(3, 11, (3/11))
+
+plot(dbinom(0:11, 11, (3/11)))
+
+```
+3. Likelihood is binomial
+```{r answer3a}
+l <- c(0,0,0,0)
+l[1] <- dbinom(7, 10, 0.2)
+l[2] <- dbinom(7, 10, 0.4)
+l[3] <- dbinom(7, 10, 0.6)
+l[4] <- dbinom(7, 10, 0.8)
+l
+# prior*likelihood
+l*0.25
+# normalizing constant
+mean(l)
+# posterior
+post <- l*0.25/mean(l)
+post
+# b.
+sum(post*c(0.2,0.4,0.6,0.8))
+# c.
+l2 <- c(0,0,0,0)
+l2[1] <- dbinom(2, 5, 0.2)
+l2[2] <- dbinom(2, 5, 0.4)
+l2[3] <- dbinom(2, 5, 0.6)
+l2[4] <- dbinom(2, 5, 0.8)
+l2
+# prior*likelihood
+l2*post
+# normalizing constant
+sum(l2*post)
+# posterior
+post2 <- l2*post/sum(l2*post)
+post2
+# d.
+sum(post2*c(0.2,0.4,0.6,0.8))
+```
+4a.
+```{r answer4a}
+1-pbinom(q=620, size=1000, prob=0.65)
+```
+If $\theta$ = 0.65, the chance more than 620 of the 1000 Macey's
+customers bought the sale item is 0.9742.
+
+4b. 
+```{r answer4b}
+plot(dbinom(0:1000, 1000, 0.65), xlim = c(500,800))
+```
+4c. 
+```{r answer4c}
+z <- rbinom(5000, 1000, 0.65)
+z[1:3]
+sum(z > 620)/5000
+hist(z, freq=F, breaks = 500:800)
+```
+iii. The first time I ran this I got a percentage of 97.34% (I know it will change when I knit). This is approximating the value calculated in part a. and it is close within a hundredth of a percent of the true value 0.9742378. 
+
+iv. Our histogram looks quite similar to the plotted probabilities in part (b). We have similar heights, a similar shape, and a similar spread, although the true probabilities are much more uniform than the estimated probabilities. 

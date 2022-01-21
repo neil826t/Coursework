@@ -1,0 +1,56 @@
+---
+title: "S251 HW 7"
+author: "Neil Thompson"
+date: "3/29/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+#1a
+
+```{r 1a}
+urban = c(197,199,205,214,217,222,223,227,228,234)
+popMeanU = 220
+gamma = 2.001
+phi = 500
+gammaU = gamma + length(urban)/2
+phiU = phi + sum((urban - popMeanU)^2)/2
+gammaU
+phiU
+curve(dgamma(1/x,gammaU,phiU),xlim=c(0,1000),ylab = "Posterior density", xlab = expression(sigma[u]^2))
+```
+
+Let $\sigma_u^2$ represent the variance of serum cholesterol in urban Guatemalan residents.
+
+$\sigma_u^2|$data$, \mu = 220 \sim$ IG(7.001, 1281)
+
+#1b
+
+```{r 1b}
+rural = c(139,142,143,144,145,148,155,162,171,181)
+popMeanR = 150
+gammaR = gamma + length(rural)/2
+phiR = phi + sum((rural - popMeanR)^2)/2
+gammaR
+phiR
+curve(dgamma(1/x,gammaR,phiR),xlim=c(0,1000),ylab = "Posterior density", xlab = expression(sigma[r]^2))
+```
+
+Let $\sigma_r^2$ represent the variance of serum cholesterol in rural Guatemalan residents.
+
+$\sigma_r^2|$data$, \mu = 150 \sim$ IG(7.001, 1435)
+
+#1c
+
+```{r 1c}
+varU.dot <- 1/rgamma(1e6, gammaU, phiU)
+varR.dot <- 1/rgamma(1e6, gammaR, phiR)
+d.dot <- varU.dot - varR.dot
+hist(d.dot, xlim = c(-800, 600), freq = F, breaks = 40*(-1000:1000))
+plot(density(d.dot), xlim = c(-800, 600))
+quantile(d.dot, c(0.025, 0.975))
+```
+
+There is a 95% posterior probability that the difference between the variances of the urban and rural Guatemalan groups is in the interval (-325.142, 254.3794).

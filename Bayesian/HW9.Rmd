@@ -1,0 +1,118 @@
+---
+title: "MCMC Distributions"
+author: "Neil Thompson"
+date: "4/12/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#1a - Rejection sampling on the NZ Giardia proportion distribution
+
+```{r 1a}
+alpha <- 1
+beta <- 4
+x <- 17
+n <- 116
+alpha1 <- alpha + x
+beta1 <- beta + n - x
+
+theta.save <- NULL
+for(i in 1:1e5){
+	theta.dot <- runif(1)
+	r <- dbinom(x, n, theta.dot)*dbeta(theta.dot, alpha, beta)/(0.265*dunif(theta.dot, 0, 1))
+	accept <- sample(c(T, F), 1, prob=c(r, 1-r))
+	if(accept==T){
+		theta.save <- c(theta.save, theta.dot)
+	}
+}
+
+plot(density(theta.save))
+
+# Add line for the true posterior distribution 
+curve(dbeta(x, alpha1, beta1), add=T, col='red')
+```
+
+#1b - Metropolis Random Walk on the NZ Giardia proportion distribution
+
+```{r 1b}
+#MCMC setup
+iters <- 1e5 #number of iterations
+theta.save <- rep(0, iters) #initialize a vector to save the accepted values of the parameter
+theta <- 0.2 #starting value of parameter
+n.accept <- 0 #how many times do we accept the proposed value?
+c <- 0.05 #standard deviation of the proposal distribution
+
+#MCMC algorithm (metropolis random walk)
+for(i in 1:iters){
+	theta.dot <- rnorm(1, theta, c)
+	if(theta.dot <= 1 & theta.dot >=0){
+		r <- dbinom(x, n, theta.dot)*dbeta(theta.dot, alpha, beta)/(dbinom(x, n, theta)*dbeta(theta, alpha, beta))
+		if(r > 1){
+			r <- 1
+		}
+		accept <- sample(c(T, F), 1, prob=c(r, 1-r))
+		if(accept==T){
+			theta <- theta.dot
+			n.accept <- n.accept+1
+		}
+	}
+	theta.save[i] <- theta 
+}
+
+#Plot the approximate posterior distribution
+plot(density(theta.save))
+# Add line for the true posterior distribution 
+curve(dbeta(x, alpha1, beta1), add=T, col='red')
+
+#Can compute posterior summaries as usual with Monte Carlo sampling
+mean(theta.save)
+sd(theta.save)
+quantile(theta.save, c(.025, .975))
+```
+
+#2 - Metropolis Random Walk on the mean Orem potholes per block distribution
+
+```{r 2}
+gamma <- 0.5
+phi <- 0.5
+potholes <- c(3,3,7,1,4,6,6,7,3,1,5,5,5,3,3,0,3,1,2,2)
+gamma1 <- gamma + sum(potholes)
+phi1 <- phi + length(potholes)
+#MCMC setup
+iters <- 1e5 #number of iterations
+lambda.save <- rep(0, iters) #initialize a vector to save the accepted values of the parameter
+lambda <- 3 #starting value of parameter
+n.accept <- 0 #how many times do we accept the proposed value?
+c <- 2 #standard deviation of the proposal distribution
+
+#MCMC algorithm (metropolis random walk)
+for(i in 1:iters){
+	lambda.dot <- rnorm(1, lambda, c)
+	if(lambda.dot >=0){
+		r <- prod(dpois(potholes, lambda.dot))*dgamma(lambda.dot, gamma, phi)/
+		  (prod(dpois(potholes, lambda))*dgamma(lambda, gamma, phi))
+		if(r > 1){
+			r <- 1
+		}
+		accept <- sample(c(T, F), 1, prob=c(r, 1-r))
+		if(accept==T){
+			lambda <- lambda.dot
+			n.accept <- n.accept+1
+		}
+	}
+	lambda.save[i] <- lambda 
+}
+
+#Plot the approximate posterior distribution
+plot(density(lambda.save))
+# Add line for the true posterior distribution 
+curve(dgamma(x, gamma1, phi1), add=T, col='red')
+
+#Can compute posterior summaries as usual with Monte Carlo sampling
+mean(lambda.save)
+sd(lambda.save)
+quantile(lambda.save, c(.025, .975))
+```

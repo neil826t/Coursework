@@ -1,0 +1,179 @@
+---
+title: "HW8 Gibbs"
+author: "Neil Thompson"
+date: "4/6/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#1a
+
+The blue is the prior, the red is the posterior
+```{r 1a}
+lambda <- 80
+tau <- 10
+gamma <- 4.25
+phi <- 48.25
+grades <- c(90.5,78.9,92.5,75.7,59.5,79.6,76.3,86.2)
+
+nrep <- 1e5
+mu <- numeric(nrep+1)
+sigsq <- numeric(nrep+1)
+
+mu[1] <- 80
+sigsq[1] <- 15
+
+for (i in 1:nrep){
+  lambda1 <- (tau^2*sum(grades) + sigsq[i]*lambda)/(tau^2*length(grades) + sigsq[i])
+  tau1 <- sqrt((sigsq[i]*tau^2)/(tau^2*length(grades) + sigsq[i]))
+  mu[i+1] <- rnorm(1, lambda1, tau1)
+  
+  gamma1 <- gamma + length(grades)/2
+  phi1 <- phi + sum((grades-mu[i])^2)/2
+  sigsq[i+1] <- 1/rgamma(1,gamma1,phi1)
+}
+plot(density(mu),xlim=c(40,120), xlab = expression(mu), col = "red")
+curve(dnorm(x,lambda,tau),ylab = "Density", add = T, col = "blue")
+```
+#1b
+
+
+```{r 1b}
+quantile(mu, c(.025,.975))
+```
+#1c
+
+The blue is the prior, the red is the posterior
+```{r 1c}
+plot(density(sigsq),xlim=c(0,150), ylim =c(0,0.035),xlab = expression(sigma^2), col = "red")
+curve(dgamma(1/x,gamma,phi)/318.3675,xlim=c(0,100),ylab = "Density", add = T, col = "blue")
+```
+#1d
+
+```{r 1d}
+sqrt(quantile(sigsq, c(.025,.975)))
+```
+
+#1e
+Since the mean of the distribution of $\mu$ is approximately 80, and both that distribution and the distribution of grades are assumed to be normal (and thus symmetric), we will assume that an 85.4 is in the upper half of the class. 
+
+#2a
+```{r 2a}
+lambda <- 1000
+tau <- 200
+gamma <- 0.5
+phi <- 0.5
+cra <- c(1010, 1000, 950, 1050)
+nrep <- 1e5
+mu <- numeric(nrep+1)
+sigsq <- numeric(nrep+1)
+
+mu[1] <- 1000
+sigsq[1] <- 10
+
+for (i in 1:nrep){
+  lambda1 <- (tau^2*sum(cra) + sigsq[i]*lambda)/(tau^2*length(cra) + sigsq[i])
+  tau1 <- sqrt((sigsq[i]*tau^2)/(tau^2*length(cra) + sigsq[i]))
+  mu[i+1] <- rnorm(1, lambda1, tau1)
+  
+  gamma1 <- gamma + length(cra)/2
+  phi1 <- phi + sum((cra-mu[i])^2)/2
+  sigsq[i+1] <- 1/rgamma(1,gamma1,phi1)
+}
+plot(density(mu),xlim=c(900,1100), xlab = expression(mu), col = "red")
+#curve(dnorm(x,lambda,tau),ylab = "Density", add = T, col = "blue")
+#plot(density(sigsq), xlim = c(0,10000),xlab = expression(sigma^2), col = "red")
+```
+
+#2b
+```{r 2b}
+quantile(mu, c(.025,.975))
+```
+This interval is wider than the interval in HW6 1b, which is between approximately 963 and 1041. 
+
+#2c
+```{r 2c}
+xi <- 2203 - 0.835*mu
+plot(density(xi),xlim=c(1250,1450), xlab = expression(mu), col = "red")
+```
+
+#2d
+```{r 2d}
+quantile(xi, c(.025, .975))
+```
+
+This interval is a bit wider than the the interval in HW6 1d, which is between approximately 1333 and 1399.
+
+#3a
+```{r 3a}
+urban <- c(197,199,205,214,217,222,223,227,228,234)
+lambda <- 220
+tau <- 10000
+gamma <- 2.001
+phi <- 500
+nrep <- 1e5
+muU <- numeric(nrep+1)
+sigsqU <- numeric(nrep+1)
+
+muU[1] <- 220
+sigsqU[1] <- 500
+
+for (i in 1:nrep){
+  lambda1 <- (tau^2*sum(urban) + sigsqU[i]*lambda)/(tau^2*length(urban) + sigsqU[i])
+  tau1 <- sqrt((sigsqU[i]*tau^2)/(tau^2*length(urban) + sigsqU[i]))
+  muU[i+1] <- rnorm(1, lambda1, tau1)
+  
+  gamma1 <- gamma + length(urban)/2
+  phi1 <- phi + sum((urban-muU[i])^2)/2
+  sigsqU[i+1] <- 1/rgamma(1,gamma1,phi1)
+}
+
+plot(density(sigsqU), xlim = c(0,800),xlab = expression(sigma^2), col = "red")
+popMeanU = 220
+gammaU = gamma + length(urban)/2
+phiU = phi + sum((urban - popMeanU)^2)/2
+curve(dgamma(1/x,gammaU,phiU)/54678.65,xlim=c(0,1000),ylab = "Posterior density", xlab = expression(sigma[u]^2), col = "blue", add = T)
+```
+Red is the posterior of the variance, blue is full conditional of the variance given that $\mu$ = 220.
+
+#3b
+```{r 3b}
+rural = c(139,142,143,144,145,148,155,162,171,181)
+popMeanR = 150
+gammaR = gamma + length(rural)/2
+phiR = phi + sum((rural - popMeanR)^2)/2
+nrep <- 1e5
+muR <- numeric(nrep+1)
+sigsqR <- numeric(nrep+1)
+
+muR[1] <- 150
+sigsqR[1] <- 500
+
+for (i in 1:nrep){
+  lambda1 <- (tau^2*sum(rural) + sigsqR[i]*lambda)/(tau^2*length(rural) + sigsqR[i])
+  tau1 <- sqrt((sigsqR[i]*tau^2)/(tau^2*length(rural) + sigsqR[i]))
+  muR[i+1] <- rnorm(1, lambda1, tau1)
+  
+  gamma1 <- gamma + length(rural)/2
+  phi1 <- phi + sum((rural-muR[i])^2)/2
+  sigsqR[i+1] <- 1/rgamma(1,gamma1,phi1)
+}
+
+plot(density(sigsqR), xlim = c(0,800),xlab = expression(sigma^2), col = "red")
+```
+Since we are doing a homework assignment about Gibbs Sampling, I am going to assume that the sentence "The population mean is assumed to be 150" and go with the part about the prior. 
+
+#3c
+
+```{r 3c}
+sigsqD <- sigsqU - sigsqR
+plot(density(sigsqD), xlim = c(-500,400),xlab = expression(sigma[u]^2-sigma[r]^2), col = "red")
+quantile(sigsqD, c(0.025,0.975))
+```
+Given our data, there is a 95% chance that the difference between the variance of urban and rural serum cholesterol is between -366.98 and 275.58.
+
+#3d
+It is wider in 3c than in 1c in HW7 because we do not know the population mean and therefore have more uncertainty about the variance.
